@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.biubiu.stock.stockanalyze.mapper.StockMoneyFlowMapper">
+    <insert id="insertOrUpdate">
+        INSERT INTO stock_money_flow (stock_code, stock_name, stock_price, stock_price_max, stock_price_min,
+        turnover_rate, volume_ratio, per_roll, volume, amount, stock_price_rate,
+        main_net, small_net, middle_net, large_net, super_net, trade_date, create_time)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.stockCode}, #{item.stockName}, #{item.stockPrice}, #{item.stockPriceMax}, #{item.stockPriceMin},
+            #{item.turnoverRate}, #{item.volumeRatio}, #{item.perRoll}, #{item.volume}, #{item.amount},
+            #{item.stockPriceRate}, #{item.mainNet}, #{item.smallNet}, #{item.middleNet}, #{item.largeNet},
+            #{item.superNet}, #{item.tradeDate}, #{item.createTime})
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        stock_name       = COALESCE(VALUES(stock_name),       stock_name),
+        stock_price      = COALESCE(VALUES(stock_price),      stock_price),
+        stock_price_max  = COALESCE(VALUES(stock_price_max),  stock_price_max),
+        stock_price_min  = COALESCE(VALUES(stock_price_min),  stock_price_min),
+        turnover_rate    = COALESCE(VALUES(turnover_rate),    turnover_rate),
+        volume_ratio     = COALESCE(VALUES(volume_ratio),     volume_ratio),
+        per_roll         = COALESCE(VALUES(per_roll),         per_roll),
+        volume           = COALESCE(VALUES(volume),           volume),
+        amount           = COALESCE(VALUES(amount),           amount),
+        stock_price_rate = COALESCE(VALUES(stock_price_rate), stock_price_rate),
+        main_net         = COALESCE(VALUES(main_net),         main_net),
+        small_net        = COALESCE(VALUES(small_net),        small_net),
+        middle_net       = COALESCE(VALUES(middle_net),       middle_net),
+        large_net        = COALESCE(VALUES(large_net),        large_net),
+        super_net        = COALESCE(VALUES(super_net),        super_net),
+        create_time      = COALESCE(VALUES(create_time),      create_time)
+    </insert>
+
+    <select id="getTradeTimeBetween" resultType="com.biubiu.stock.stockanalyze.model.StockMoneyFlow">
+        SELECT * FROM stock_money_flow
+        WHERE trade_date BETWEEN #{formerTime} AND #{latterTime}
+        AND stock_price is not null
+        ORDER BY trade_date ASC
+    </select>
+
+    <select id="getLatesdTradeDate" resultType="java.time.LocalDateTime">
+        SELECT MAX(trade_date) FROM stock_money_flow
+    </select>
+</mapper>
