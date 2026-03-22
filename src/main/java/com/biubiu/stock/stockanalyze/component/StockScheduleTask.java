@@ -37,6 +37,8 @@ public class StockScheduleTask {
         }
         log.info("早盘统计完成");
         rootService.getWxAnalyzeMessage();
+        Thread.sleep(2000);
+        rootService.getWxSelectedAnalyzeMessage();
     }
 
     // 工作日 13:00 - 15:00 每30分钟执行
@@ -56,6 +58,8 @@ public class StockScheduleTask {
         }
         log.info("午盘统计完成");
         rootService.getWxAnalyzeMessage();
+        Thread.sleep(2000);
+        rootService.getWxSelectedAnalyzeMessage();
     }
 
 
@@ -66,11 +70,16 @@ public class StockScheduleTask {
             rootService.freshStockPriceDataAll();
             WxPostUtils wxPostUtils = new WxPostUtils();
             wxPostUtils.postMessage("刷新数据结束", "当日股票数据刷新完成！");
+            Thread.sleep(2000);
         } catch (Exception e) {
             WxPostUtils wxPostUtils = new WxPostUtils();
             wxPostUtils.postMessage("刷新晚盘数据失败", e.getMessage());
         }
         log.info("晚盘统计完成");
         rootService.getWxAnalyzeMessage();
+        Thread.sleep(2000);
+        rootService.getWxSelectedAnalyzeMessage();
     }
+
+
 }

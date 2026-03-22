@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.biubiu.stock.stockanalyze.component.DatabaseBackupTask;
 import com.biubiu.stock.stockanalyze.enums.UnitEnum;
 import com.biubiu.stock.stockanalyze.mapper.SelectedStockMapper;
 import com.biubiu.stock.stockanalyze.mapper.StockBkMapper;
@@ -37,6 +38,8 @@ public class RootServiceImpl implements RootService {
     private final SelectedStockMapper selectedStockMapper;
 
     private final StockMoneyFlowMapper stockMoneyFlowMapper;
+
+    private final DatabaseBackupTask databaseBackupTask;
 
     List<String> errorStockNo = new ArrayList<>();
 
@@ -423,7 +426,7 @@ public class RootServiceImpl implements RootService {
 
         List<StockMoneyFlow> stockMoneyFlowList = stockMoneyFlowMapper.getTradeTimeBetweenAndCodeList(fifteenMinutesAgo, currentTime, selectedCodeList);
 
-        // 按 mainNet 排序 取前10
+        // 按 mainNet 排序
         List<StockMoneyFlow> top10ByMainNet = stockMoneyFlowList.stream()
                 .sorted(Comparator.comparingDouble(s -> -s.getMainNet().doubleValue()))
                 .collect(Collectors.toList());
@@ -435,7 +438,7 @@ public class RootServiceImpl implements RootService {
         }
         content = content + "\n\n\n";
 
-        // 按 stockPriceRate 排序 取前10
+        // 按 stockPriceRate
         List<StockMoneyFlow> top10ByPriceRate = stockMoneyFlowList.stream()
                 .sorted(Comparator.comparingDouble(s -> -s.getStockPriceRate().doubleValue()))
                 .collect(Collectors.toList());
@@ -447,7 +450,7 @@ public class RootServiceImpl implements RootService {
         }
         content = content + "\n\n\n";
 
-        // 按 superNet 排序 取前10
+        // 按 superNet
         List<StockMoneyFlow> top10BySuperNet = stockMoneyFlowList.stream()
                 .sorted(Comparator.comparingDouble(s -> -s.getSuperNet().doubleValue()))
                 .collect(Collectors.toList());
@@ -459,7 +462,7 @@ public class RootServiceImpl implements RootService {
         }
         content = content + "\n\n\n";
 
-        // 按 largeNet 排序 取前10
+        // 按 largeNet
         List<StockMoneyFlow> top10ByLargeNet = stockMoneyFlowList.stream()
                 .sorted(Comparator.comparingDouble(s -> -s.getLargeNet().doubleValue()))
                 .collect(Collectors.toList());
@@ -522,6 +525,11 @@ public class RootServiceImpl implements RootService {
         }
 
         log.info("自选股价格更新完成，共更新 {} 条", flowMap.size());
+    }
+
+    @Override
+    public void saveDatabaseSql() {
+        databaseBackupTask.backupDatabase();
     }
 
 

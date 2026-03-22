@@ -80,4 +80,10 @@ public class RootController {
     private void sendWxMessage() {
         rootService.getWxAnalyzeMessage();
     }
+
+    //保存数据库数据
+    @RequestMapping("/saveDatabaseSql")
+    private void saveDatabaseSql() {
+        rootService.saveDatabaseSql();
+    }
 }
