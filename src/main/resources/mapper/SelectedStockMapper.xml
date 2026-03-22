@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.biubiu.stock.stockanalyze.mapper.SelectedStockMapper">
+    <resultMap id="BaseResultMap" type="com.biubiu.stock.stockanalyze.model.SelectedStock">
+        <id     column="id"           property="id"/>
+        <result column="code"         property="code"/>
+        <result column="name"         property="name"/>
+        <result column="type"         property="type"/>
+        <result column="current_price" property="currentPrice"/>
+        <result column="take_num"     property="takeNum"/>
+        <result column="cost_price"   property="costPrice"/>
+        <result column="upgrade_time" property="upgradeTime"/>
+    </resultMap>
+    <sql id="Base_Column_List">
+        id, code, name, type, current_price, take_num, cost_price, upgrade_time
+    </sql>
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM selected_stock
+        WHERE code = #{code}
+    </select>
+
+    <update id="updateByCode">
+        UPDATE selected_stock
+        SET
+            name          = COALESCE(#{stock.name},         name),
+            current_price = COALESCE(#{stock.currentPrice}, current_price),
+            take_num      = COALESCE(#{stock.takeNum},      take_num),
+            cost_price    = COALESCE(#{stock.costPrice},    cost_price),
+            upgrade_time  = COALESCE(#{stock.upgradeTime},  upgrade_time)
+        WHERE code = #{stock.code}
+    </update>
+</mapper>

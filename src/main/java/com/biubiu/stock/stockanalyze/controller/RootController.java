@@ -21,6 +21,15 @@ public class RootController {
         }
     }
 
+    @RequestMapping("/changeSelectedStock")
+    private void changeSelectedStock() {
+        try {
+            rootService.changeSelectedStock();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @RequestMapping("/getStockInfo")
     private void getStockInfo() {
         try {
@@ -44,6 +53,15 @@ public class RootController {
         try {
             rootService.freshStockMoneyFlowDataAll();
         } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @RequestMapping("/getWxSelectedAnalyzeMessage")
+    private void getWxSelectedAnalyzeMessage() {
+        try {
+            rootService.getWxSelectedAnalyzeMessage();
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

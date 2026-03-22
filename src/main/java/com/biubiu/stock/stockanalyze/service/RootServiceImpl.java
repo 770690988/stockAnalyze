@@ -2,10 +2,13 @@ package com.biubiu.stock.stockanalyze.service;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.biubiu.stock.stockanalyze.enums.UnitEnum;
+import com.biubiu.stock.stockanalyze.mapper.SelectedStockMapper;
 import com.biubiu.stock.stockanalyze.mapper.StockBkMapper;
 import com.biubiu.stock.stockanalyze.mapper.StockMoneyFlowMapper;
+import com.biubiu.stock.stockanalyze.model.SelectedStock;
 import com.biubiu.stock.stockanalyze.model.StockBk;
 import com.biubiu.stock.stockanalyze.model.StockMoneyFlow;
 import com.biubiu.stock.stockanalyze.utils.WxPostUtils;
@@ -22,10 +25,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,6 +33,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RootServiceImpl implements RootService {
     private final StockBkMapper stockBkMapper;
+
+    private final SelectedStockMapper selectedStockMapper;
 
     private final StockMoneyFlowMapper stockMoneyFlowMapper;
 
@@ -334,7 +336,7 @@ public class RootServiceImpl implements RootService {
 
     public void getWxAnalyzeMessage() {
         log.info("current TradeTime is {}", getCurrentTradeTime());
-        LocalDateTime currentTime = stockMoneyFlowMapper.getLatesdTradeDate();
+        LocalDateTime currentTime = stockMoneyFlowMapper.getLatestTradeDate();
         LocalDateTime fifteenMinutesAgo = currentTime.minusMinutes(15);
 
         String summary = "";
@@ -400,6 +402,128 @@ public class RootServiceImpl implements RootService {
         WxPostUtils wxPostUtils = new WxPostUtils();
         wxPostUtils.postMessage(summary, content);
     }
+
+    public void getWxSelectedAnalyzeMessage() {
+        // 1. 查出所有自选股
+        List<SelectedStock> selectedStockList = selectedStockMapper.selectList(null);
+        if (selectedStockList.isEmpty()) {
+            return;
+        }
+        // 2. 取出所有自选股的 code
+        List<String> selectedCodeList = selectedStockList.stream()
+                .map(SelectedStock::getCode)
+                .collect(Collectors.toList());
+
+        log.info("current TradeTime is {}", getCurrentTradeTime());
+        LocalDateTime currentTime = stockMoneyFlowMapper.getLatestTradeDate();
+        LocalDateTime fifteenMinutesAgo = currentTime.minusMinutes(15);
+
+        String summary = "";
+        String content = "";
+
+        List<StockMoneyFlow> stockMoneyFlowList = stockMoneyFlowMapper.getTradeTimeBetweenAndCodeList(fifteenMinutesAgo, currentTime, selectedCodeList);
+
+        // 按 mainNet 排序 取前10
+        List<StockMoneyFlow> top10ByMainNet = stockMoneyFlowList.stream()
+                .sorted(Comparator.comparingDouble(s -> -s.getMainNet().doubleValue()))
+                .collect(Collectors.toList());
+        log.info("===== 主力净流入=====");
+        content = content + "===== 主力净流入=====\n";
+        top10ByMainNet.forEach(s -> log.info("{}", StockMoneyFlow.getWxDataInfo(s)));
+        for (int i = 0; i < top10ByMainNet.size(); i++) {
+            content = content + StockMoneyFlow.getWxDataInfo(top10ByMainNet.get(i));
+        }
+        content = content + "\n\n\n";
+
+        // 按 stockPriceRate 排序 取前10
+        List<StockMoneyFlow> top10ByPriceRate = stockMoneyFlowList.stream()
+                .sorted(Comparator.comparingDouble(s -> -s.getStockPriceRate().doubleValue()))
+                .collect(Collectors.toList());
+        log.info("===== 股票涨幅 =====");
+        content = content + "===== 股票涨幅=====\n";
+        top10ByPriceRate.forEach(s -> log.info("{}", StockMoneyFlow.getWxDataInfo(s)));
+        for (int i = 0; i < top10ByPriceRate.size(); i++) {
+            content = content + StockMoneyFlow.getWxDataInfo(top10ByPriceRate.get(i));
+        }
+        content = content + "\n\n\n";
+
+        // 按 superNet 排序 取前10
+        List<StockMoneyFlow> top10BySuperNet = stockMoneyFlowList.stream()
+                .sorted(Comparator.comparingDouble(s -> -s.getSuperNet().doubleValue()))
+                .collect(Collectors.toList());
+        log.info("===== 超大单净流入 =====");
+        content = content + "===== 超大单净流入=====\n";
+        top10BySuperNet.forEach(s -> log.info("{}", StockMoneyFlow.getWxDataInfo(s)));
+        for (int i = 0; i < top10BySuperNet.size(); i++) {
+            content = content + StockMoneyFlow.getWxDataInfo(top10BySuperNet.get(i));
+        }
+        content = content + "\n\n\n";
+
+        // 按 largeNet 排序 取前10
+        List<StockMoneyFlow> top10ByLargeNet = stockMoneyFlowList.stream()
+                .sorted(Comparator.comparingDouble(s -> -s.getLargeNet().doubleValue()))
+                .collect(Collectors.toList());
+        log.info("===== 大单净流入 =====");
+        content = content + "===== 大单净流入 =====\n";
+        top10ByLargeNet.forEach(s -> log.info("{}", StockMoneyFlow.getWxDataInfo(s)));
+        for (int i = 0; i < top10ByLargeNet.size(); i++) {
+            content = content + StockMoneyFlow.getWxDataInfo(top10ByLargeNet.get(i));
+        }
+        content = content + "\n\n\n";
+
+        summary = currentTime + "盘中自选天量";
+        log.info("summary is {}", summary);
+        log.info("content is {}", content);
+        WxPostUtils wxPostUtils = new WxPostUtils();
+        wxPostUtils.postMessage(summary, content);
+    }
+
+    @Override
+    public void changeSelectedStock() {
+        // 1. 查出所有自选股
+        List<SelectedStock> selectedStockList = selectedStockMapper.selectList(null);
+        if (selectedStockList.isEmpty()) return;
+
+        // 2. 获取最新 trade_date
+        LocalDateTime latestTradeDate = stockMoneyFlowMapper.getLatestTradeDate();
+        if (latestTradeDate == null) {
+            log.warn("未找到最新交易时间");
+            return;
+        }
+        log.info("最新交易时间: {}", latestTradeDate);
+
+        // 3. 取出所有自选股的 code
+        List<String> codes = selectedStockList.stream()
+                .map(SelectedStock::getCode)
+                .collect(Collectors.toList());
+
+        // 4. 根据 code 和最新 trade_date 查询 StockMoneyFlow
+        List<StockMoneyFlow> flowList = stockMoneyFlowMapper.selectList(
+                new LambdaQueryWrapper<StockMoneyFlow>()
+                        .in(StockMoneyFlow::getStockCode, codes)
+                        .eq(StockMoneyFlow::getTradeDate, latestTradeDate)
+        );
+
+        // 5. 转成 Map 方便查找
+        Map<String, StockMoneyFlow> flowMap = flowList.stream()
+                .collect(Collectors.toMap(StockMoneyFlow::getStockCode, f -> f));
+
+        // 6. 更新 SelectedStock
+        for (SelectedStock stock : selectedStockList) {
+            StockMoneyFlow flow = flowMap.get(stock.getCode());
+            if (flow == null) {
+                log.warn("未找到股票 {} 的资金流向数据", stock.getCode());
+                continue;
+            }
+            stock.setName(flow.getStockName());
+            stock.setCurrentPrice(flow.getStockPrice());
+            stock.setUpgradeTime(latestTradeDate);
+            selectedStockMapper.updateById(stock);
+        }
+
+        log.info("自选股价格更新完成，共更新 {} 条", flowMap.size());
+    }
+
 
     public String getCurrentTradeTime() {
         LocalDateTime now = LocalDateTime.now();

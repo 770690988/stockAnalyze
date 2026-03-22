@@ -38,7 +38,16 @@
         ORDER BY trade_date ASC
     </select>
 
-    <select id="getLatesdTradeDate" resultType="java.time.LocalDateTime">
+    <select id="getLatestTradeDate" resultType="java.time.LocalDateTime">
         SELECT MAX(trade_date) FROM stock_money_flow
+    </select>
+    <select id="getTradeTimeBetweenAndCodeList"
+            resultType="com.biubiu.stock.stockanalyze.model.StockMoneyFlow">
+        SELECT * FROM stock_money_flow
+        WHERE trade_date BETWEEN #{formerTime} AND #{latterTime}
+        AND stock_code IN
+        <foreach collection="codeList" item="code" open="(" separator="," close=")">
+            #{code}
+        </foreach>
     </select>
 </mapper>

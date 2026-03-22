@@ -8,4 +8,6 @@ public interface RootService {
     void freshStockMoneyFlowDataAll() throws InterruptedException;
     void freshStockPriceDataAll() throws InterruptedException;
     void getWxAnalyzeMessage();
+    void getWxSelectedAnalyzeMessage();
+    void changeSelectedStock();
 }
