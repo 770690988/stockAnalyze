@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.biubiu.stock</groupId>
     <artifactId>stockAnalyze</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.1-20260325</version>
     <name>stockAnalyze</name>
     <description>stockAnalyze</description>
     <properties>
@@ -95,7 +95,7 @@
                 <version>${spring-boot.version}</version>
                 <configuration>
                     <mainClass>com.biubiu.stock.stockanalyze.StockAnalyzeApplication</mainClass>
-                    <skip>true</skip>
+                    <skip>false</skip>
                 </configuration>
                 <executions>
                     <execution>
