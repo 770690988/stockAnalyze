@@ -20,13 +20,20 @@ public class DatabaseBackupTask {
     @Value("${spring.datasource.password}")
     private String dbPassword;
 
-    private Integer splitSize = 40;
+    @Value("${backup.split-size}")
+    private Integer SPLIT_SIZE = 40;
 
-    private static final String CONTAINER_NAME = "mysql-server";
-    private static final String DB_NAME        = "stock_analyze";
-    private static final String BACKUP_DIR     = "C:\\biubiu\\project\\data";
+    @Value("${backup.container-name}")
+    private String CONTAINER_NAME;
 
-    private static final String SPLIT_PATH    = "C:\\biubiu\\project\\stockAnalyze\\src\\main\\java\\com\\biubiu\\stock\\stockanalyze\\sql";
+    @Value("${backup.db-name}")
+    private String DB_NAME;
+
+    @Value("${backup.backup-dir}")
+    private String BACKUP_DIR;
+
+    @Value("${backup.split-path}")
+    private String SPLIT_PATH;
 
     @Scheduled(cron = "0 40 15 ? * MON-FRI")
     public void backupDatabase() {
@@ -91,6 +98,6 @@ public class DatabaseBackupTask {
 
     public void splitSql(String filePath) throws IOException {
         String finalSplitPath = SPLIT_PATH + File.separator + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        SqlSplitUtils.splitSqlFile(filePath, finalSplitPath, splitSize);
+        SqlSplitUtils.splitSqlFile(filePath, finalSplitPath, SPLIT_SIZE);
     }
 }
