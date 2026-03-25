@@ -35,6 +35,17 @@ public class DatabaseBackupTask {
     @Value("${backup.split-path}")
     private String SPLIT_PATH;
 
+    private String[] buildCommand(String shellCommand) {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("win")) {
+            log.info("current os is windows");
+            return new String[]{"cmd", "/c", shellCommand};
+        } else {
+            log.info("current os is linux");
+            return new String[]{"sh", "-c", shellCommand};
+        }
+    }
+
     @Scheduled(cron = "0 40 15 ? * MON-FRI")
     public void backupDatabase() {
         log.info("开始备份数据库...");
@@ -47,11 +58,10 @@ public class DatabaseBackupTask {
         String fileName = DB_NAME + "_" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".sql";
         String filePath = BACKUP_DIR + File.separator + fileName;
 
-        String[] command = {
-                "cmd", "/c",
+        String[] command = buildCommand(
                 String.format("docker exec %s mysqldump -u%s -p%s %s > %s",
                         CONTAINER_NAME, dbUser, dbPassword, DB_NAME, filePath)
-        };
+        );
 
         try {
             Process process = Runtime.getRuntime().exec(command);
