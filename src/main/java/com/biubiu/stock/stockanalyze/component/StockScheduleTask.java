@@ -15,12 +15,6 @@ import java.time.LocalTime;
 public class StockScheduleTask {
     private final RootService rootService;
 
-//    @Scheduled(cron = "0 * * * * ?")  // 每分钟执行
-//    public void testSceduledTask() throws Exception {
-//        //分析数据
-//        rootService.getWxAnalyzeMessage();
-//    }
-
     // 工作日 09:45 - 11:30 每30分钟执行
     @Scheduled(cron = "0 15/30 9-11 ? * MON-FRI")
     public void freshStockDataMorning() throws Exception {
@@ -36,9 +30,9 @@ public class StockScheduleTask {
             wxPostUtils.postMessage("刷新股票数据失败", e.getMessage());
         }
         log.info("早盘统计完成");
-        rootService.getWxAnalyzeMessage();
-        Thread.sleep(2000);
-        rootService.getWxSelectedAnalyzeMessage();
+//        rootService.getWxAnalyzeMessage();
+//        Thread.sleep(2000);
+//        rootService.getWxSelectedAnalyzeMessage();
     }
 
     // 工作日 13:00 - 15:00 每30分钟执行
@@ -57,9 +51,9 @@ public class StockScheduleTask {
             wxPostUtils.postMessage("刷新股票数据失败", e.getMessage());
         }
         log.info("午盘统计完成");
-        rootService.getWxAnalyzeMessage();
-        Thread.sleep(2000);
-        rootService.getWxSelectedAnalyzeMessage();
+//        rootService.getWxAnalyzeMessage();
+//        Thread.sleep(2000);
+//        rootService.getWxSelectedAnalyzeMessage();
     }
 
 
@@ -76,9 +70,9 @@ public class StockScheduleTask {
             wxPostUtils.postMessage("刷新晚盘数据失败", e.getMessage());
         }
         log.info("晚盘统计完成");
-        rootService.getWxAnalyzeMessage();
-        Thread.sleep(2000);
-        rootService.getWxSelectedAnalyzeMessage();
+//        rootService.getWxAnalyzeMessage();
+//        Thread.sleep(2000);
+//        rootService.getWxSelectedAnalyzeMessage();
     }
 
 

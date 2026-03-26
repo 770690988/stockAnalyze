@@ -59,7 +59,7 @@ public class DatabaseBackupTask {
         String filePath = BACKUP_DIR + File.separator + fileName;
 
         String[] command = buildCommand(
-                String.format("docker exec %s mysqldump -u%s -p%s %s > %s",
+                String.format("docker exec %s mysqldump --single-transaction --set-gtid-purged=OFF -u%s -p%s %s > %s",
                         CONTAINER_NAME, dbUser, dbPassword, DB_NAME, filePath)
         );
 
