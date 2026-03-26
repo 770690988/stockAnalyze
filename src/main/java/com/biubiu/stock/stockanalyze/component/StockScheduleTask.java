@@ -1,9 +1,11 @@
 package com.biubiu.stock.stockanalyze.component;
 
+import com.biubiu.stock.stockanalyze.enums.EnvironmentEnum;
 import com.biubiu.stock.stockanalyze.service.RootService;
 import com.biubiu.stock.stockanalyze.utils.WxPostUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +16,20 @@ import java.time.LocalTime;
 @RequiredArgsConstructor
 public class StockScheduleTask {
     private final RootService rootService;
+
+    @Value("${environment.product}")
+    private String environment;
+
+    //发送手机消息
+    private void sendWxMessage() throws InterruptedException {
+        if (environment.equals(EnvironmentEnum.PRODUCT.environment)) {
+            rootService.getWxAnalyzeMessage();
+            Thread.sleep(2000);
+            rootService.getWxSelectedAnalyzeMessage();
+        } else {
+            log.info("current environment is not product");
+        }
+    }
 
     // 工作日 09:45 - 11:30 每30分钟执行
     @Scheduled(cron = "0 15/30 9-11 ? * MON-FRI")
@@ -30,9 +46,7 @@ public class StockScheduleTask {
             wxPostUtils.postMessage("刷新股票数据失败", e.getMessage());
         }
         log.info("早盘统计完成");
-//        rootService.getWxAnalyzeMessage();
-//        Thread.sleep(2000);
-//        rootService.getWxSelectedAnalyzeMessage();
+        sendWxMessage();
     }
 
     // 工作日 13:00 - 15:00 每30分钟执行
@@ -51,9 +65,7 @@ public class StockScheduleTask {
             wxPostUtils.postMessage("刷新股票数据失败", e.getMessage());
         }
         log.info("午盘统计完成");
-//        rootService.getWxAnalyzeMessage();
-//        Thread.sleep(2000);
-//        rootService.getWxSelectedAnalyzeMessage();
+        sendWxMessage();
     }
 
 
@@ -70,9 +82,7 @@ public class StockScheduleTask {
             wxPostUtils.postMessage("刷新晚盘数据失败", e.getMessage());
         }
         log.info("晚盘统计完成");
-//        rootService.getWxAnalyzeMessage();
-//        Thread.sleep(2000);
-//        rootService.getWxSelectedAnalyzeMessage();
+        sendWxMessage();
     }
 
 

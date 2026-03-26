@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.biubiu.stock</groupId>
     <artifactId>stockAnalyze</artifactId>
-    <version>0.0.1-20260325</version>
+    <version>0.0.3-20260327</version>
     <name>stockAnalyze</name>
     <description>stockAnalyze</description>
     <properties>
