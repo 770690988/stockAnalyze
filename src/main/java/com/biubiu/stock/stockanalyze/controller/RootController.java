@@ -1,6 +1,9 @@
 package com.biubiu.stock.stockanalyze.controller;
 
+import com.biubiu.stock.stockanalyze.component.StockScheduleTask;
+import com.biubiu.stock.stockanalyze.component.TradeCalendarService;
 import com.biubiu.stock.stockanalyze.service.RootService;
+import com.biubiu.stock.stockanalyze.service.WxNotifyService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,6 +14,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class RootController {
     @Autowired
     private RootService rootService;  // 注入接口
+
+    @Autowired
+    private TradeCalendarService tradeCalendarService;
+
+    @Autowired
+    private StockScheduleTask stockScheduleTask; // 你的定时任务类
+
+    @Autowired
+    private WxNotifyService wxNotifyService;
 
     @RequestMapping("/testInfo")
     private void testInfo() {
@@ -85,5 +97,12 @@ public class RootController {
     @RequestMapping("/saveDatabaseSql")
     private void saveDatabaseSql() {
         rootService.saveDatabaseSql();
+    }
+
+    @RequestMapping("/triggerMorning")
+    public String triggerMorning() throws Exception {
+        stockScheduleTask.freshStockDataMorning();
+        wxNotifyService.sendInformation("triggerMorning", "triggerMorning complete");
+        return "早盘任务已触发，查看日志";
     }
 }

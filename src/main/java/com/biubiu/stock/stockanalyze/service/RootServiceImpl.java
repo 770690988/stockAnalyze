@@ -16,6 +16,7 @@ import com.biubiu.stock.stockanalyze.utils.WxPostUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -40,6 +41,9 @@ public class RootServiceImpl implements RootService {
     private final StockMoneyFlowMapper stockMoneyFlowMapper;
 
     private final DatabaseBackupTask databaseBackupTask;
+
+    @Autowired
+    private WxNotifyService wxNotifyService;
 
     List<String> errorStockNo = new ArrayList<>();
 
@@ -402,8 +406,7 @@ public class RootServiceImpl implements RootService {
         summary = currentTime + "盘中定时主力天量";
         log.info("summary is {}", summary);
         log.info("content is {}", content);
-        WxPostUtils wxPostUtils = new WxPostUtils();
-        wxPostUtils.postMessage(summary, content);
+        wxNotifyService.sendInformation(summary, content);
     }
 
     public void getWxSelectedAnalyzeMessage() {
@@ -477,8 +480,7 @@ public class RootServiceImpl implements RootService {
         summary = currentTime + "盘中自选天量";
         log.info("summary is {}", summary);
         log.info("content is {}", content);
-        WxPostUtils wxPostUtils = new WxPostUtils();
-        wxPostUtils.postMessage(summary, content);
+        wxNotifyService.sendInformation(summary, content);
     }
 
     @Override

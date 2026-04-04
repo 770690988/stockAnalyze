@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.biubiu.stock.stockanalyze.mapper.TradeCalendarMapper">
+    <resultMap id="BaseResultMap" type="com.biubiu.stock.stockanalyze.model.TradeCalendar">
+    <id     column="trade_date" property="tradeDate"/>
+    <result column="is_trading" property="isTrading"/>
+    <result column="remark"     property="remark"/>
+</resultMap>
+
+    <select id="selectByDate" resultMap="BaseResultMap">
+        SELECT trade_date, is_trading, remark
+        FROM trade_calendar
+        WHERE trade_date = #{date}
+    </select>
+
+    <select id="selectByDateRange" resultMap="BaseResultMap">
+        SELECT trade_date, is_trading, remark
+        FROM trade_calendar
+        WHERE trade_date BETWEEN #{startDate} AND #{endDate}
+        ORDER BY trade_date
+    </select>
+
+    <insert id="batchUpsert">
+        INSERT INTO trade_calendar (trade_date, is_trading, remark)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.tradeDate}, #{item.isTrading}, #{item.remark})
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+        is_trading = VALUES(is_trading),
+        remark     = VALUES(remark)
+    </insert>
+</mapper>
