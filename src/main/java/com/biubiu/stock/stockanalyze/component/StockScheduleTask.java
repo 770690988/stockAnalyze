@@ -43,7 +43,7 @@ public class StockScheduleTask {
     @Scheduled(cron = "0 15/30 9-11 ? * MON-FRI")
     public void freshStockDataMorning() throws Exception {
         //节假日跳过
-        if (!tradeCalendarService.isTradingDay()) {
+        if (tradeCalendarService.isTradingDay()) {
             log.info("current day is not trading day");
             return;
         }
@@ -65,7 +65,7 @@ public class StockScheduleTask {
     @Scheduled(cron = "0 0/30 13-15 ? * MON-FRI")
     public void freshStockDataAfternoon() throws Exception {
         //节假日跳过
-        if (!tradeCalendarService.isTradingDay()) {
+        if (tradeCalendarService.isTradingDay()) {
             log.info("current day is not trading day");
             return;
         }
@@ -89,7 +89,7 @@ public class StockScheduleTask {
     @Scheduled(cron = "0 30 15 ? * MON-FRI")
     public void freshStockDataEvening() throws Exception {
         //节假日跳过
-        if (!tradeCalendarService.isTradingDay()) {
+        if (tradeCalendarService.isTradingDay()) {
             log.info("current day is not trading day");
             return;
         }

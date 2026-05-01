@@ -28,10 +28,21 @@ public class TradeCalendarService {
         // 先看数据库有没有记录
         TradeCalendar calendar = tradeCalendarMapper.selectByDate(today);
         if (calendar != null) {
-            return calendar.getIsTrading() == 1;
+            return calendar.getIsTrading() != 1;
         }
         // 数据库没有记录，降级判断：周一到周五视为交易日
         DayOfWeek dow = today.getDayOfWeek();
-        return dow != DayOfWeek.SATURDAY && dow != DayOfWeek.SUNDAY;
+        return dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY;
+    }
+
+    public boolean isTradingDay(LocalDate date) {
+        // 先看数据库有没有记录
+        TradeCalendar calendar = tradeCalendarMapper.selectByDate(date);
+        if (calendar != null) {
+            return calendar.getIsTrading() != 1;
+        }
+        // 数据库没有记录，降级判断：周一到周五视为交易日
+        DayOfWeek dow = date.getDayOfWeek();
+        return dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY;
     }
 }

@@ -37,6 +37,10 @@ public class StockMoneyFlow {
     @TableField("stock_price_min")
     private BigDecimal stockPriceMin;
 
+    //股票开盘价格
+    @TableField("stock_price_start")
+    private BigDecimal stockPriceStart;
+
     //换手率
     @TableField("turnover_rate")
     private BigDecimal turnoverRate;

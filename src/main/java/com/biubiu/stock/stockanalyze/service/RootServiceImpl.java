@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.biubiu.stock.stockanalyze.component.DatabaseBackupTask;
+import com.biubiu.stock.stockanalyze.component.TradeCalendarService;
 import com.biubiu.stock.stockanalyze.enums.UnitEnum;
 import com.biubiu.stock.stockanalyze.mapper.SelectedStockMapper;
 import com.biubiu.stock.stockanalyze.mapper.StockBkMapper;
@@ -12,7 +13,6 @@ import com.biubiu.stock.stockanalyze.mapper.StockMoneyFlowMapper;
 import com.biubiu.stock.stockanalyze.model.SelectedStock;
 import com.biubiu.stock.stockanalyze.model.StockBk;
 import com.biubiu.stock.stockanalyze.model.StockMoneyFlow;
-import com.biubiu.stock.stockanalyze.utils.WxPostUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -41,6 +40,9 @@ public class RootServiceImpl implements RootService {
     private final StockMoneyFlowMapper stockMoneyFlowMapper;
 
     private final DatabaseBackupTask databaseBackupTask;
+
+    @Autowired
+    private TradeCalendarService tradeCalendarService;
 
     @Autowired
     private WxNotifyService wxNotifyService;
@@ -286,7 +288,7 @@ public class RootServiceImpl implements RootService {
             MediaType mediaType = MediaType.parse("text/plain");
             RequestBody body = RequestBody.create(mediaType, "");
             Request request = new Request.Builder()
-                    .url("https://push2.eastmoney.com/api/qt/clist/get?np=1&fltt=1&invt=2&cb=jQuery37105078362270830823_1773668416609&fs=m%3A0%2Bt%3A6%2Bf%3A!2%2Cm%3A0%2Bt%3A80%2Bf%3A!2%2Cm%3A1%2Bt%3A2%2Bf%3A!2%2Cm%3A1%2Bt%3A23%2Bf%3A!2%2Cm%3A0%2Bt%3A81%2Bs%3A262144%2Bf%3A!2&fields=f12%2Cf13%2Cf14%2Cf1%2Cf2%2Cf4%2Cf3%2Cf152%2Cf5%2Cf6%2Cf7%2Cf15%2Cf18%2Cf16%2Cf17%2Cf10%2Cf8%2Cf9%2Cf23&fid=f3&pn="+ num +"&pz=100&po=1&dect=1&ut=fa5fd1943c7b386f172d6893dbfba10b&wbp2u=%7C0%7C0%7C0%7Cweb&_=1773668416613")
+                    .url("https://push2.eastmoney.com/api/qt/clist/get?np=1&fltt=1&invt=2&cb=jQuery37105078362270830823_1773668416609&fs=m%3A0%2Bt%3A6%2Bf%3A!2%2Cm%3A0%2Bt%3A80%2Bf%3A!2%2Cm%3A1%2Bt%3A2%2Bf%3A!2%2Cm%3A1%2Bt%3A23%2Bf%3A!2%2Cm%3A0%2Bt%3A81%2Bs%3A262144%2Bf%3A!2&fields=f12%2Cf13%2Cf14%2Cf1%2Cf2%2Cf4%2Cf3%2Cf152%2Cf5%2Cf6%2Cf7%2Cf15%2Cf18%2Cf16%2Cf17%2Cf10%2Cf8%2Cf9%2Cf23%2Cf17&fid=f3&pn="+ num +"&pz=100&po=1&dect=1&ut=fa5fd1943c7b386f172d6893dbfba10b&wbp2u=%7C0%7C0%7C0%7Cweb&_=1773668416613")
                     .get()
                     .build();
             try {
@@ -318,6 +320,7 @@ public class RootServiceImpl implements RootService {
                     BigDecimal divisor = BigDecimal.TEN.pow(UnitEnum.HUNDRED.unitDigit);
                     BigDecimal stockPriceMax = item.getBigDecimal("f15").divide(divisor, 2, RoundingMode.HALF_UP);
                     BigDecimal stockPriceMin = item.getBigDecimal("f16").divide(divisor, 2, RoundingMode.HALF_UP);
+                    BigDecimal stockPriceStart = item.getBigDecimal("f17").divide(divisor, 2, RoundingMode.HALF_UP);
                     BigDecimal turnoverRate = item.getBigDecimal("f8").divide(divisor, 2, RoundingMode.HALF_UP);
                     BigDecimal volumeRatio = item.getBigDecimal("f10").divide(divisor, 2, RoundingMode.HALF_UP);
                     BigDecimal perRoll = item.getBigDecimal("f9").divide(divisor, 2, RoundingMode.HALF_UP);
@@ -325,6 +328,7 @@ public class RootServiceImpl implements RootService {
                     BigDecimal amount = item.getBigDecimal("f6");
                     stockMoneyFlow.setStockPriceMax(stockPriceMax);
                     stockMoneyFlow.setStockPriceMin(stockPriceMin);
+                    stockMoneyFlow.setStockPriceStart(stockPriceStart);
                     stockMoneyFlow.setTurnoverRate(turnoverRate);
                     stockMoneyFlow.setVolumeRatio(volumeRatio);
                     stockMoneyFlow.setPerRoll(perRoll);
@@ -534,21 +538,26 @@ public class RootServiceImpl implements RootService {
         databaseBackupTask.backupDatabase();
     }
 
-
     public String getCurrentTradeTime() {
         LocalDateTime now = LocalDateTime.now();
         LocalTime currentTime = now.toLocalTime();
         LocalDate currentDate = now.toLocalDate();
 
-        LocalTime marketOpen  = LocalTime.of(9, 30);
+        LocalTime marketOpen  = LocalTime.of(9, 15);
         LocalTime marketClose = LocalTime.of(15, 0);
+        LocalDate lastWorkDay = getLastWorkDay(currentDate);
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         LocalDateTime result;
 
+        //判断当天是否是交易日
+        if (tradeCalendarService.isTradingDay(currentDate)) {
+            result = LocalDateTime.of(lastWorkDay, marketClose);
+            return result.format(formatter);
+        }
+
         if (currentTime.isBefore(marketOpen)) {
-            // 早于9:30 取上一个工作日15:00
-            LocalDate lastWorkDay = getLastWorkDay(currentDate);
+            // 早于9:15 取上一个工作日15:00
             result = LocalDateTime.of(lastWorkDay, marketClose);
         } else if (currentTime.isAfter(marketClose)) {
             // 晚于15:00 取当天15:00
@@ -564,9 +573,8 @@ public class RootServiceImpl implements RootService {
     // 获取上一个工作日（跳过周六周日）
     private LocalDate getLastWorkDay(LocalDate date) {
         LocalDate lastDay = date.minusDays(1);
-        // 如果是周六往前推2天 如果是周日往前推1天
-        while (lastDay.getDayOfWeek() == DayOfWeek.SATURDAY ||
-                lastDay.getDayOfWeek() == DayOfWeek.SUNDAY) {
+        // 日期往前推 直到推到最近一次交易日
+        while (tradeCalendarService.isTradingDay(lastDay)) {
             lastDay = lastDay.minusDays(1);
         }
         return lastDay;

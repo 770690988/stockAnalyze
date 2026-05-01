@@ -10,6 +10,6 @@ public interface RootService {
     void getWxAnalyzeMessage();
     void getWxSelectedAnalyzeMessage();
     void changeSelectedStock();
-
+    String getCurrentTradeTime();
     void saveDatabaseSql();
 }

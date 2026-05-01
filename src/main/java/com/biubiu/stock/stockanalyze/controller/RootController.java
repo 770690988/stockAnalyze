@@ -26,11 +26,8 @@ public class RootController {
 
     @RequestMapping("/testInfo")
     private void testInfo() {
-        try {
-            rootService.getBKInfo();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        String currentTradeTime = rootService.getCurrentTradeTime();
+        log.info("current trade time is {}", currentTradeTime);
     }
 
     @RequestMapping("/changeSelectedStock")
