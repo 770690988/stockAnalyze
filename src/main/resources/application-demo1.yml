@@ -7,6 +7,18 @@ spring:
     url: jdbc:mysql://localhost:3306/stock_analyze
     username: root
     password: xxxxxxxxx
+    hikari:
+      # 连接池最大生存时间，建议设置为比数据库 wait_timeout 短 30-60 秒
+      # 这里设置为 5 分钟 (300000 毫秒) 作为保守策略，可根据实际情况调整
+      max-lifetime: 300000
+      # 连接超时时间
+      connection-timeout: 30000
+      # 空闲连接超时时间，应小于 max-lifetime
+      idle-timeout: 60000
+      # 最小空闲连接数
+      minimum-idle: 5
+      # 最大连接池大小
+      maximum-pool-size: 10
   task:
     execution:
       pool:

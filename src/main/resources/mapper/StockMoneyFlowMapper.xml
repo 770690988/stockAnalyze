@@ -51,4 +51,9 @@
             #{code}
         </foreach>
     </select>
+    <select id="getByStockCodeAndTradeDate" resultType="com.biubiu.stock.stockanalyze.model.StockMoneyFlow">
+        SELECT * from stock_money_flow
+        WHERE stock_code = #{stockCode}
+        AND trade_date = #{tradeDate}
+    </select>
 </mapper>

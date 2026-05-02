@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.biubiu.stock.stockanalyze.mapper.StockWatchlistBkStockMapper">
+    <!-- 根据自选板块ID查询该板块下所有股票的最新资金流向 -->
+    <select id="getLatestMoneyFlowByWatchBkId" resultType="com.biubiu.stock.stockanalyze.model.StockMoneyFlow">
+        SELECT mf.*
+        FROM stock_watchlist_bk_stock ws
+                 JOIN stock_money_flow mf ON ws.stock_code = mf.stock_code
+        WHERE ws.bk_id = #{bkId}
+          AND mf.trade_date = (SELECT MAX(trade_date) FROM stock_money_flow)
+        ORDER BY mf.main_net DESC
+    </select>
+</mapper>

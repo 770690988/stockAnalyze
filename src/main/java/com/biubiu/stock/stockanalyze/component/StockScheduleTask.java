@@ -2,7 +2,7 @@ package com.biubiu.stock.stockanalyze.component;
 
 import com.biubiu.stock.stockanalyze.enums.EnvironmentEnum;
 import com.biubiu.stock.stockanalyze.service.RootService;
-import com.biubiu.stock.stockanalyze.service.WxNotifyService;
+import com.biubiu.stock.stockanalyze.service.impl.WxNotifyService;
 import com.biubiu.stock.stockanalyze.utils.WxPostUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

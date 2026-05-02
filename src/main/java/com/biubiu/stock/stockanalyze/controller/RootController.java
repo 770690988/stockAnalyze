@@ -3,7 +3,7 @@ package com.biubiu.stock.stockanalyze.controller;
 import com.biubiu.stock.stockanalyze.component.StockScheduleTask;
 import com.biubiu.stock.stockanalyze.component.TradeCalendarService;
 import com.biubiu.stock.stockanalyze.service.RootService;
-import com.biubiu.stock.stockanalyze.service.WxNotifyService;
+import com.biubiu.stock.stockanalyze.service.impl.WxNotifyService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;

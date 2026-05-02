@@ -1,4 +1,4 @@
-package com.biubiu.stock.stockanalyze.service;
+package com.biubiu.stock.stockanalyze.service.impl;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
@@ -13,6 +13,8 @@ import com.biubiu.stock.stockanalyze.mapper.StockMoneyFlowMapper;
 import com.biubiu.stock.stockanalyze.model.SelectedStock;
 import com.biubiu.stock.stockanalyze.model.StockBk;
 import com.biubiu.stock.stockanalyze.model.StockMoneyFlow;
+import com.biubiu.stock.stockanalyze.service.RootService;
+import com.biubiu.stock.stockanalyze.service.impl.WxNotifyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;

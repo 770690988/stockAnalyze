@@ -1,4 +1,4 @@
-package com.biubiu.stock.stockanalyze.service;
+package com.biubiu.stock.stockanalyze.service.impl;
 
 import com.biubiu.stock.stockanalyze.utils.WxPostUtils;
 import lombok.extern.slf4j.Slf4j;
