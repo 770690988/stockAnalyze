@@ -39,7 +39,7 @@ public class StockScheduleTask {
         }
     }
 
-    // 工作日 09:45 - 11:30 每30分钟执行
+    // 工作日 09:30 - 11:30 每30分钟执行
     @Scheduled(cron = "0 15/30 9-11 ? * MON-FRI")
     public void freshStockDataMorning() throws Exception {
         //节假日跳过
@@ -48,7 +48,7 @@ public class StockScheduleTask {
             return;
         }
         LocalTime now = LocalTime.now();
-        if (now.isBefore(LocalTime.of(9, 45)) || now.isAfter(LocalTime.of(11, 30))) {
+        if (now.isBefore(LocalTime.of(9, 30)) || now.isAfter(LocalTime.of(11, 30))) {
             return;
         }
         log.info("早盘统计开始...");
