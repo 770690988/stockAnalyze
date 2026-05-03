@@ -18,4 +18,6 @@ public interface StockWatchlistBkStockMapper extends BaseMapper<StockWatchlistBk
 
     // 根据板块ID查询该板块下所有股票的最新资金流向
     List<StockMoneyFlow> getLatestMoneyFlowByWatchBkId(@Param("bkId") Integer bkId);
+
+    List<String> getStockListByBkId(@Param("id") Integer id);
 }

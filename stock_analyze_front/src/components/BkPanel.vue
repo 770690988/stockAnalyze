@@ -97,10 +97,12 @@ const typeList = ref([])
 
 const loadTypeList = async () => {
   const res = await getBkTypeList()
-  typeList.value = res.data
+  console.log('typeList res:', res)  // 看看结构
+  typeList.value = res
 }
 
 const getTypeLabel = (typeValue) => {
+  if (!typeList.value || typeList.value.length === 0) return '加载中'
   const found = typeList.value.find(t => t.typeValue === typeValue)
   return found ? found.typeLabel : '未知'
 }

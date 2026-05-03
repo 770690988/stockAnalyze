@@ -2,6 +2,7 @@ package com.biubiu.stock.stockanalyze.service;
 
 import com.biubiu.stock.stockanalyze.model.StockMoneyFlow;
 import com.biubiu.stock.stockanalyze.model.StockWatchlistBkStock;
+import com.biubiu.stock.stockanalyze.model.request.MoneyFlowPeriodRequest;
 
 import java.util.List;
 
@@ -26,4 +27,6 @@ public interface StockWatchlistBkStockService {
 
     // 查询板块下所有股票的最新资金流向
     List<StockMoneyFlow> getLatestMoneyFlowByBkId(Integer bkId);
+
+    List<StockMoneyFlow> getMoneyFlowPeriod(MoneyFlowPeriodRequest request);
 }

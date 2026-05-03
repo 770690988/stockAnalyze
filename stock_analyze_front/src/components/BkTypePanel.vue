@@ -77,8 +77,8 @@ const loadTypeList = async () => {
   loading.value = true
   try {
     const res = await getBkTypeList()
-    typeList.value = res.data
-    emit('change', res.data)
+    typeList.value = res
+    emit('change', res)
   } finally {
     loading.value = false
   }

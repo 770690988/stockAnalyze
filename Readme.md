@@ -38,3 +38,16 @@ docker inspect {docker id} | grep "CreateCommand" -A 20
                     "localhost/mysql:latest"
                ]
 ```
+
+### mysql
+#### 连接超限 处理方式
+```mysql
+-- 查看当前最大连接数限制
+SHOW VARIABLES LIKE 'max_connections';
+
+-- 查看当前实际连接数
+SHOW STATUS LIKE 'Threads_connected';
+
+-- 看看都是哪些连接占着
+SHOW PROCESSLIST;
+```

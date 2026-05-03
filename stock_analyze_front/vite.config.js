@@ -6,7 +6,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/watchlist/bk': {
-        target: 'http://localhost:8082', // 改成你后端的 IP 和端口
+        target: 'http://localhost:8082',
+        changeOrigin: true
+      },
+      '/api': {                          // ← 要在 proxy 里面
+        target: 'http://localhost:8082',
         changeOrigin: true
       }
     }

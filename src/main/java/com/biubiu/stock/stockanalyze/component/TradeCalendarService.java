@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 /**
  * @Author biubiu
@@ -44,5 +46,45 @@ public class TradeCalendarService {
         // 数据库没有记录，降级判断：周一到周五视为交易日
         DayOfWeek dow = date.getDayOfWeek();
         return dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY;
+    }
+
+    public LocalDateTime getLatestWorkDay(LocalDateTime dateTime) {
+        LocalTime marketOpen  = LocalTime.of(9, 15);
+        LocalTime marketClose = LocalTime.of(15, 0);
+        LocalTime time = dateTime.toLocalTime();
+        if (time.isBefore(marketOpen)) {
+            dateTime = dateTime.minusDays(1);
+            dateTime = LocalDateTime.of(dateTime.toLocalDate(), marketClose);
+        } else if (time.isAfter(marketClose)) {
+            dateTime = LocalDateTime.of(dateTime.toLocalDate(), marketClose);
+        }
+        LocalDate date = dateTime.toLocalDate();
+        if (isTradingDay(date)) {
+            return dateTime;
+        }
+        LocalDate lastWorkDay = getLastWorkDay(date);
+
+        return LocalDateTime.of(lastWorkDay, marketClose);
+    }
+
+    // 获取对应时间前几天的交易日时间
+    public LocalDateTime getPeriodWorkDayBefore(LocalDateTime dateTime, Integer periodDay) {
+        LocalTime marketClose = LocalTime.of(15, 0);
+        LocalDateTime latestWorkDay = getLatestWorkDay(dateTime);
+        LocalDate date = latestWorkDay.toLocalDate();
+        for (int i = 0; i < periodDay; i++) {
+            date = getLastWorkDay(date);
+        }
+
+        return LocalDateTime.of(date, marketClose);
+    }
+
+    public LocalDate getLastWorkDay(LocalDate date) {
+        LocalDate lastDay = date.minusDays(1);
+        // 日期往前推 直到推到最近一次交易日
+        while (isTradingDay(lastDay)) {
+            lastDay = lastDay.minusDays(1);
+        }
+        return lastDay;
     }
 }

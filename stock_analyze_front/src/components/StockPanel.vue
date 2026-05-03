@@ -7,8 +7,8 @@
           <span class="panel-subtitle">共 {{ stockList.length }} 只股票</span>
         </div>
         <div class="panel-header-actions">
-          <el-button size="small" @click="loadMoneyFlow" :loading="moneyFlowLoading">
-            <el-icon><TrendCharts /></el-icon> 查看资金流向
+          <el-button size="small" @click="toggleMoneyFlow" :loading="moneyFlowLoading">
+            <el-icon><TrendCharts /></el-icon> {{ showMoneyFlow ? '收起资金流向' : '查看资金流向' }}
           </el-button>
           <el-button type="primary" size="small" @click="openAddDialog">
             <el-icon><Plus /></el-icon> 添加股票
@@ -17,40 +17,67 @@
       </div>
 
       <!-- 资金流向面板 -->
-      <div v-if="showMoneyFlow && moneyFlowList.length > 0" class="money-flow-section">
-        <div class="section-label">最新资金流向</div>
-        <el-table :data="moneyFlowList" size="small" stripe class="money-flow-table">
-          <el-table-column prop="stockCode" label="代码" width="90" />
-          <el-table-column prop="stockName" label="名称" width="100" />
-          <el-table-column prop="stockPrice" label="现价" width="80" />
-          <el-table-column prop="stockPriceRate" label="涨跌幅" width="90">
-            <template #default="{ row }">
-              <span :class="row.stockPriceRate >= 0 ? 'rise' : 'fall'">
-                {{ row.stockPriceRate >= 0 ? '+' : '' }}{{ row.stockPriceRate }}%
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="mainNet" label="主力净流入" width="120">
-            <template #default="{ row }">
-              <span :class="row.mainNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.mainNet) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="superNet" label="超大单净流入" width="120">
-            <template #default="{ row }">
-              <span :class="row.superNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.superNet) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="largeNet" label="大单净流入" width="110">
-            <template #default="{ row }">
-              <span :class="row.largeNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.largeNet) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="largeNet" label="小单净流入" width="110">
-            <template #default="{ row }">
-              <span :class="row.smallNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.smallNet) }}</span>
-            </template>
-          </el-table-column>
-        </el-table>
+      <div v-if="showMoneyFlow" class="money-flow-section">
+        <div class="flow-toolbar">
+          <span class="section-label">资金流向</span>
+          <el-radio-group v-model="periodDay" size="small" @change="loadMoneyFlowHistory">
+            <el-radio-button :value="1">当日</el-radio-button>
+            <el-radio-button :value="5">5日</el-radio-button>
+            <el-radio-button :value="10">10日</el-radio-button>
+            <el-radio-button :value="30">30日</el-radio-button>
+          </el-radio-group>
+        </div>
+
+        <div v-if="historyLoading" class="chart-loading">加载中...</div>
+
+        <!-- 统一表格：当日和多日都用这个 -->
+        <table v-else class="flow-table">
+          <thead>
+            <tr>
+              <th width="90">代码</th>
+              <th width="100">名称</th>
+              <th width="80">现价</th>
+              <th width="90">涨跌幅</th>
+              <th width="120">主力净流入</th>
+              <th width="120">超大单</th>
+              <th width="110">大单</th>
+              <th width="110">中单</th>
+              <th width="110">小单</th>
+              <th v-if="periodDay > 1">趋势</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in moneyFlowList" :key="row.stockCode">
+              <td>{{ row.stockCode }}</td>
+              <td>{{ row.stockName }}</td>
+              <td>{{ row.stockPrice }}</td>
+              <td><span :class="row.stockPriceRate >= 0 ? 'rise' : 'fall'">{{ row.stockPriceRate >= 0 ? '+' : '' }}{{ row.stockPriceRate }}%</span></td>
+              <td><span :class="row.mainNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.mainNet) }}</span></td>
+              <td><span :class="row.superNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.superNet) }}</span></td>
+              <td><span :class="row.largeNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.largeNet) }}</span></td>
+              <td><span :class="row.middleNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.middleNet) }}</span></td>
+              <td><span :class="row.smallNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.smallNet) }}</span></td>
+              <td v-if="periodDay > 1" class="chart-cell">
+                <div
+                  :ref="el => { if(el) chartRefs[row.stockCode] = el }"
+                  class="mini-chart"
+                ></div>
+              </td>
+            </tr>
+            <!-- 合计行 -->
+            <tr class="total-row">
+            <td colspan="4">合计</td>
+            <td><span :class="totalMainNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalMainNet) }}</span></td>
+            <td><span :class="totalSuperNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalSuperNet) }}</span></td>
+            <td><span :class="totalLargeNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalLargeNet) }}</span></td>
+            <td><span :class="totalMiddleNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalMiddleNet) }}</span></td>
+            <td><span :class="totalSmallNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalSmallNet) }}</span></td>
+            <td v-if="periodDay > 1" class="chart-cell">
+              <div ref="totalChartRef" class="mini-chart"></div>
+            </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- 股票列表 -->
@@ -112,30 +139,29 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Folder, TrendCharts } from '@element-plus/icons-vue'
-import { getStockList, addStock, updateStock, deleteStock, getMoneyFlow } from '../api/watchlist'
+import * as echarts from 'echarts'
+import { getStockList, addStock, updateStock, deleteStock, getMoneyFlow, getMoneyFlowHistory } from '../api/watchlist'
 
 const props = defineProps({
   selectedBk: { type: Object, default: null },
 })
 
-// 股票列表
+// ===================== 股票列表 =====================
 const stockList = ref([])
 const stockLoading = ref(false)
 
 const loadStockList = async (bkId) => {
   stockLoading.value = true
   try {
-    const res = await getStockList(bkId)
-    stockList.value = res.data
+    stockList.value = await getStockList(bkId)
   } finally {
     stockLoading.value = false
   }
 }
 
-// 监听选中板块变化，自动加载股票列表
 watch(() => props.selectedBk, (bk) => {
   if (bk) {
     showMoneyFlow.value = false
@@ -146,14 +172,13 @@ watch(() => props.selectedBk, (bk) => {
   }
 })
 
-// 删除股票
 const handleDelete = async (id) => {
   await deleteStock(id)
   ElMessage.success('移除成功')
   await loadStockList(props.selectedBk.id)
 }
 
-// 弹窗
+// ===================== 弹窗 =====================
 const dialogVisible = ref(false)
 const dialogMode = ref('add')
 const submitting = ref(false)
@@ -163,17 +188,8 @@ const rules = {
   stockCode: [{ required: true, message: '请输入股票代码', trigger: 'blur' }],
 }
 
-const openAddDialog = () => {
-  dialogMode.value = 'add'
-  dialogVisible.value = true
-}
-
-const openEditDialog = (row) => {
-  dialogMode.value = 'edit'
-  form.value = { ...row }
-  dialogVisible.value = true
-}
-
+const openAddDialog = () => { dialogMode.value = 'add'; dialogVisible.value = true }
+const openEditDialog = (row) => { dialogMode.value = 'edit'; form.value = { ...row }; dialogVisible.value = true }
 const resetForm = () => {
   form.value = { stockCode: '', stockName: '', addReason: '', remark: '', sort: 0 }
   formRef.value?.resetFields()
@@ -184,13 +200,8 @@ const submitForm = async () => {
   submitting.value = true
   try {
     if (dialogMode.value === 'add') {
-      const addFlag = await addStock({ ...form.value, bkId: props.selectedBk.id })
-      console.log(addFlag.data);
-      if (addFlag.data) {
-        ElMessage.success('添加成功')
-      } else {
-        ElMessage.error('添加失败')
-      }
+      const ok = await addStock({ ...form.value, bkId: props.selectedBk.id })
+      ElMessage[ok ? 'success' : 'error'](ok ? '添加成功' : '添加失败')
     } else {
       await updateStock(form.value)
       ElMessage.success('修改成功')
@@ -202,40 +213,180 @@ const submitForm = async () => {
   }
 }
 
-// 资金流向
+// ===================== 资金流向 =====================
 const showMoneyFlow = ref(false)
-const moneyFlowList = ref([])
 const moneyFlowLoading = ref(false)
+const moneyFlowList = ref([])  // 当日或多日最新一天的数据，用于表格展示
+const historyData = ref({})    // 多日历史数据，用于画图
+const periodDay = ref(1)
+const chartRefs = ref({})
+const chartInstances = {}
 
-const loadMoneyFlow = async () => {
-  moneyFlowLoading.value = !moneyFlowLoading.value
+// 合计
+const totalMainNet = computed(() => moneyFlowList.value.reduce((s, r) => s + (r.mainNet || 0), 0))
+const totalSuperNet = computed(() => moneyFlowList.value.reduce((s, r) => s + (r.superNet || 0), 0))
+const totalLargeNet = computed(() => moneyFlowList.value.reduce((s, r) => s + (r.largeNet || 0), 0))
+const totalMiddleNet = computed(() => moneyFlowList.value.reduce((s, r) => s + (r.middleNet || 0), 0))
+const totalSmallNet = computed(() => moneyFlowList.value.reduce((s, r) => s + (r.smallNet || 0), 0))
+
+const toggleMoneyFlow = async () => {
   showMoneyFlow.value = !showMoneyFlow.value
-  try {
-    const res = await getMoneyFlow(props.selectedBk.id)
-    moneyFlowList.value = res.data
-  } finally {
-    moneyFlowLoading.value = false
-  }
+  if (showMoneyFlow.value) await loadMoneyFlowHistory()
 }
 
+const loadMoneyFlowHistory = async () => {
+  // 销毁旧图表
+  Object.values(chartInstances).forEach(c => c.dispose())
+  Object.keys(chartInstances).forEach(k => delete chartInstances[k])
+  chartRefs.value = {}
 
-// const loadMoneyFlow = async () => {
-//   // 如果已经显示，则隐藏并返回
-//   if (showMoneyFlow.value) {
-//     showMoneyFlow.value = false
-//     moneyFlowList.value = []
-//     return
-//   }
+  if (periodDay.value === 1) {
+    moneyFlowLoading.value = true
+    try {
+      moneyFlowList.value = await getMoneyFlow(props.selectedBk.id)
+      historyData.value = {}
+    } finally {
+      moneyFlowLoading.value = false
+    }
+  } else {
+    moneyFlowLoading.value = true
+    try {
+      const res = await getMoneyFlowHistory(props.selectedBk.id, periodDay.value)
 
-//   moneyFlowLoading.value = true
-//   try {
-//     const res = await getMoneyFlow(props.selectedBk.id)
-//     moneyFlowList.value = res.data
-//     showMoneyFlow.value = true  // ✅ 直接设为 true
-//   } finally {
-//     moneyFlowLoading.value = false
-//   }
-// }
+      // 按股票分组
+      const grouped = {}
+      res.forEach(item => {
+        if (!grouped[item.stockCode]) grouped[item.stockCode] = []
+        grouped[item.stockCode].push(item)
+      })
+
+      // 按 stockList 顺序排列，取每只股票最新一天显示在表格
+      const sortedList = []
+      const sortedHistory = {}
+      stockList.value.forEach(s => {
+        const records = grouped[s.stockCode]
+        if (records && records.length > 0) {
+          sortedList.push(records[records.length - 1])  // 最新一天放表格
+          sortedHistory[s.stockCode] = records
+        }
+      })
+
+      moneyFlowList.value = sortedList
+      historyData.value = sortedHistory
+
+      await nextTick()
+      setTimeout(() => renderMiniCharts(), 100)
+    } finally {
+      moneyFlowLoading.value = false
+    }
+  }
+}
+const totalChartRef = ref(null)
+
+const renderMiniCharts = () => {
+  // 各股票迷你图
+  Object.entries(historyData.value).forEach(([code, records]) => {
+    const el = chartRefs.value[code]
+    if (!el) return
+
+    const chart = echarts.init(el)
+    chartInstances[code] = chart
+
+    const dates = records.map(r => r.tradeDate.substring(0, 10))
+    const mainNet = records.map(r => +(r.mainNet / 10000).toFixed(2))
+    const superNet = records.map(r => +(r.superNet / 10000).toFixed(2))
+    const largeNet = records.map(r => +(r.largeNet / 10000).toFixed(2))
+    const middleNet = records.map(r => +(r.middleNet / 10000).toFixed(2))
+    const smallNet = records.map(r => +(r.smallNet / 10000).toFixed(2))
+
+    chart.setOption({
+      tooltip: {
+        trigger: 'axis', confine: true,
+        formatter: (params) => {
+          let html = `${params[0].axisValue}<br/>`
+          params.forEach(p => {
+            const color = p.value >= 0 ? '#f56c6c' : '#67c23a'
+            html += `${p.marker}${p.seriesName}：<span style="color:${color}">${p.value >= 0 ? '+' : ''}${p.value}万</span><br/>`
+          })
+          return html
+        }
+      },
+      legend: { show: false },
+      grid: { left: 2, right: 2, top: 4, bottom: 16 },
+      xAxis: {
+        type: 'category', data: dates,
+        axisLabel: { fontSize: 9, rotate: 30 },
+        axisLine: { show: false }, axisTick: { show: false }
+      },
+      yAxis: { type: 'value', show: false },
+      series: [
+        { name: '主力', type: 'bar', data: mainNet, itemStyle: { color: p => p.value >= 0 ? '#f56c6c' : '#67c23a' }, barMaxWidth: 8 },
+        { name: '超大单', type: 'line', data: superNet, smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#e6a23c' },
+        { name: '大单', type: 'line', data: largeNet, smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#409eff' },
+        { name: '中单', type: 'line', data: middleNet, smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#9c27b0' },
+        { name: '小单', type: 'line', data: smallNet, smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#909399' },
+      ]
+    })
+  })
+
+  // 合计图
+  if (totalChartRef.value && Object.keys(historyData.value).length > 0) {
+    const allDates = [...new Set(
+      Object.values(historyData.value).flatMap(records =>
+        records.map(r => r.tradeDate.substring(0, 10))
+      )
+    )].sort()
+
+    const sumByDate = {}
+    allDates.forEach(date => {
+      sumByDate[date] = { mainNet: 0, superNet: 0, largeNet: 0, middleNet: 0, smallNet: 0 }
+    })
+    Object.values(historyData.value).forEach(records => {
+      records.forEach(r => {
+        const date = r.tradeDate.substring(0, 10)
+        if (sumByDate[date]) {
+          sumByDate[date].mainNet += r.mainNet || 0
+          sumByDate[date].superNet += r.superNet || 0
+          sumByDate[date].largeNet += r.largeNet || 0
+          sumByDate[date].middleNet += r.middleNet || 0
+          sumByDate[date].smallNet += r.smallNet || 0
+        }
+      })
+    })
+
+    const totalChart = echarts.init(totalChartRef.value)
+    chartInstances['__total__'] = totalChart
+
+    totalChart.setOption({
+      tooltip: {
+        trigger: 'axis', confine: true,
+        formatter: (params) => {
+          let html = `${params[0].axisValue}<br/>`
+          params.forEach(p => {
+            const color = p.value >= 0 ? '#f56c6c' : '#67c23a'
+            html += `${p.marker}${p.seriesName}：<span style="color:${color}">${p.value >= 0 ? '+' : ''}${p.value}万</span><br/>`
+          })
+          return html
+        }
+      },
+      legend: { show: false },
+      grid: { left: 2, right: 2, top: 4, bottom: 16 },
+      xAxis: {
+        type: 'category', data: allDates,
+        axisLabel: { fontSize: 9, rotate: 30 },
+        axisLine: { show: false }, axisTick: { show: false }
+      },
+      yAxis: { type: 'value', show: false },
+      series: [
+        { name: '主力', type: 'bar', data: allDates.map(d => +(sumByDate[d].mainNet / 10000).toFixed(2)), itemStyle: { color: p => p.value >= 0 ? '#f56c6c' : '#67c23a' }, barMaxWidth: 8 },
+        { name: '超大单', type: 'line', data: allDates.map(d => +(sumByDate[d].superNet / 10000).toFixed(2)), smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#e6a23c' },
+        { name: '大单', type: 'line', data: allDates.map(d => +(sumByDate[d].largeNet / 10000).toFixed(2)), smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#409eff' },
+        { name: '中单', type: 'line', data: allDates.map(d => +(sumByDate[d].middleNet / 10000).toFixed(2)), smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#9c27b0' },
+        { name: '小单', type: 'line', data: allDates.map(d => +(sumByDate[d].smallNet / 10000).toFixed(2)), smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#909399' },
+      ]
+    })
+  }
+}
 
 const formatAmount = (val) => {
   if (val === null || val === undefined) return '-'
@@ -267,55 +418,81 @@ const formatAmount = (val) => {
   flex-shrink: 0;
 }
 
-.panel-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1a1a2e;
-}
-
-.panel-title-group {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.panel-subtitle {
-  font-size: 12px;
-  color: #999;
-}
-
-.panel-header-actions {
-  display: flex;
-  gap: 8px;
-}
+.panel-title { font-size: 15px; font-weight: 600; color: #1a1a2e; }
+.panel-title-group { display: flex; align-items: baseline; gap: 8px; }
+.panel-subtitle { font-size: 12px; color: #999; }
+.panel-header-actions { display: flex; gap: 8px; }
 
 .money-flow-section {
   padding: 12px 16px;
   background: #fafbfc;
   border-bottom: 1px solid #f0f0f0;
   flex-shrink: 0;
+  max-height: 500px;
+  overflow-y: auto;
 }
 
-.section-label {
-  font-size: 12px;
+.flow-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.section-label { font-size: 12px; color: #999; font-weight: 500; }
+
+/* 自定义表格 */
+.flow-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.flow-table th {
+  background: #f5f7fa;
+  color: #606266;
+  font-weight: 500;
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #ebeef5;
+  white-space: nowrap;
+}
+
+.flow-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f0f0f0;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.flow-table tr:hover td { background: #f5f7fa; }
+
+.total-row td {
+  font-weight: 600;
+  background: #f0f4ff;
+  border-top: 2px solid #d0d7f0;
+}
+
+.chart-cell {
+  min-width: 200px;
+  padding: 4px 8px !important;
+}
+
+.mini-chart {
+  width: 100%;
+  height: 80px;
+}
+
+.chart-loading {
+  text-align: center;
   color: #999;
-  margin-bottom: 8px;
-  font-weight: 500;
+  padding: 20px 0;
+  font-size: 13px;
 }
 
-.stock-table {
-  flex: 1;
-}
-
-.rise {
-  color: #f56c6c;
-  font-weight: 500;
-}
-
-.fall {
-  color: #67c23a;
-  font-weight: 500;
-}
+.stock-table { flex: 1; }
+.rise { color: #f56c6c; font-weight: 500; }
+.fall { color: #67c23a; font-weight: 500; }
 
 .no-selection {
   flex: 1;

@@ -9,6 +9,7 @@
         <el-button size="small" @click="typeDrawerVisible = true">
           <el-icon><Setting /></el-icon> 板块类型管理
         </el-button>
+        <el-button type="danger" plain size="small" @click="handleLogout">退出登录</el-button>
       </div>
     </header>
 
@@ -42,6 +43,7 @@ import BkPanel from '../components/BkPanel.vue'
 import StockPanel from '../components/StockPanel.vue'
 import BkTypePanel from '../components/BkTypePanel.vue'
 import { getBkList } from '../api/watchlist'
+import { useRouter } from 'vue-router'
 
 const bkList = ref([])
 const selectedBk = ref(null)
@@ -49,7 +51,7 @@ const typeDrawerVisible = ref(false)
 
 const loadBkList = async () => {
   const res = await getBkList()
-  bkList.value = res.data
+  bkList.value = res
 }
 
 const handleSelectBk = (bk) => {
@@ -60,6 +62,14 @@ const handleBkDeleted = (id) => {
   if (selectedBk.value?.id === id) {
     selectedBk.value = null
   }
+}
+
+const router = useRouter()
+
+const handleLogout = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('username')
+  router.push('/login')
 }
 
 onMounted(() => {

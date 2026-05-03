@@ -22,4 +22,8 @@ public interface StockMoneyFlowMapper extends BaseMapper<StockMoneyFlow> {
                                                         @Param("codeList") List<String> codeList);
 
     StockMoneyFlow getByStockCodeAndTradeDate(@Param("stockCode") String stockCode, @Param("tradeDate") LocalDateTime tradeDate);
+
+    List<StockMoneyFlow> getFinalTradeTimeBetween(@Param("stockCodeList") List<String> stockCodeList,
+                                                  @Param("startTime") LocalDateTime startTime,
+                                                  @Param("endTime") LocalDateTime endTime);
 }

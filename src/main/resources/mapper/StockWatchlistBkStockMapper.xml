@@ -10,4 +10,9 @@
           AND mf.trade_date = (SELECT MAX(trade_date) FROM stock_money_flow)
         ORDER BY mf.main_net DESC
     </select>
+    <select id="getStockListByBkId" resultType="java.lang.String">
+        SELECT stock_code
+        FROM stock_watchlist_bk_stock
+        WHERE bk_id = #{id}
+    </select>
 </mapper>

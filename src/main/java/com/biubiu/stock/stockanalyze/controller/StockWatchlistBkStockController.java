@@ -2,8 +2,10 @@ package com.biubiu.stock.stockanalyze.controller;
 
 import com.biubiu.stock.stockanalyze.model.StockMoneyFlow;
 import com.biubiu.stock.stockanalyze.model.StockWatchlistBkStock;
+import com.biubiu.stock.stockanalyze.model.request.MoneyFlowPeriodRequest;
 import com.biubiu.stock.stockanalyze.service.StockWatchlistBkStockService;
 import lombok.RequiredArgsConstructor;
+import org.apache.ibatis.annotations.Param;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -52,5 +54,11 @@ public class StockWatchlistBkStockController {
     @GetMapping("/moneyFlow/{bkId}")
     public ResponseEntity<List<StockMoneyFlow>> getLatestMoneyFlow(@PathVariable Integer bkId) {
         return ResponseEntity.ok(bkStockService.getLatestMoneyFlowByBkId(bkId));
+    }
+
+    // 获取板块下所有资金对应时间段内的资金量数据
+    @PostMapping("/period")
+    public ResponseEntity<List<StockMoneyFlow>> getMoneyFlowPeriod(@RequestBody MoneyFlowPeriodRequest request) {
+        return ResponseEntity.ok(bkStockService.getMoneyFlowPeriod(request));
     }
 }

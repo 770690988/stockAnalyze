@@ -46,3 +46,12 @@ VALUES
     ('5月主线_电池', 1, 1, NULL, NOW(), NOW()),
     ('5月主线_npu', 2, 2, NULL, NOW(), NOW()),
     ('5月主线_商业航天',   3, 3, NULL, NOW(), NOW());
+
+
+DROP TABLE IF EXISTS `users`;
+CREATE TABLE users (
+                       id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                       username VARCHAR(50) UNIQUE NOT NULL,
+                       password VARCHAR(255) NOT NULL,  -- BCrypt 加密存储
+                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -1,33 +1,36 @@
-import axios from 'axios'
+import request from '../utils/request'
 
 // ==================== 板块类型接口 ====================
 
-export const getBkTypeList = () => axios.get('/watchlist/bk/type/list')
+export const getBkTypeList = () => request.get('/watchlist/bk/type/list')
 
-export const addBkType = (data) => axios.post('/watchlist/bk/type/add', data)
+export const addBkType = (data) => request.post('/watchlist/bk/type/add', data)
 
-export const updateBkType = (data) => axios.post('/watchlist/bk/type/update', data)
+export const updateBkType = (data) => request.post('/watchlist/bk/type/update', data)
 
-export const deleteBkType = (id) => axios.post(`/watchlist/bk/type/delete/${id}`)
+export const deleteBkType = (id) => request.post(`/watchlist/bk/type/delete/${id}`)
 
 // ==================== 板块接口 ====================
 
-export const getBkList = () => axios.get('/watchlist/bk/list')
+export const getBkList = () => request.get('/watchlist/bk/list')
 
-export const addBk = (data) => axios.post('/watchlist/bk/add', data)
+export const addBk = (data) => request.post('/watchlist/bk/add', data)
 
-export const updateBk = (data) => axios.post('/watchlist/bk/update', data)
+export const updateBk = (data) => request.post('/watchlist/bk/update', data)
 
-export const deleteBk = (id) => axios.post(`/watchlist/bk/delete/${id}`)
+export const deleteBk = (id) => request.post(`/watchlist/bk/delete/${id}`)
+
+export const getMoneyFlowHistory = (bkId, periodDay) =>
+    request.post('/watchlist/bk/stock/period', { id: bkId, periodDay })
 
 // ==================== 股票接口 ====================
 
-export const getStockList = (bkId) => axios.get(`/watchlist/bk/stock/list/${bkId}`)
+export const getStockList = (bkId) => request.get(`/watchlist/bk/stock/list/${bkId}`)
 
-export const addStock = (data) => axios.post('/watchlist/bk/stock/add', data)
+export const addStock = (data) => request.post('/watchlist/bk/stock/add', data)
 
-export const updateStock = (data) => axios.post('/watchlist/bk/stock/update', data)
+export const updateStock = (data) => request.post('/watchlist/bk/stock/update', data)
 
-export const deleteStock = (id) => axios.post(`/watchlist/bk/stock/delete/${id}`)
+export const deleteStock = (id) => request.post(`/watchlist/bk/stock/delete/${id}`)
 
-export const getMoneyFlow = (bkId) => axios.get(`/watchlist/bk/stock/moneyFlow/${bkId}`)
+export const getMoneyFlow = (bkId) => request.get(`/watchlist/bk/stock/moneyFlow/${bkId}`)
