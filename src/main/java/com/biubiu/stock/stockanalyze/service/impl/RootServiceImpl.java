@@ -576,7 +576,7 @@ public class RootServiceImpl implements RootService {
     private LocalDate getLastWorkDay(LocalDate date) {
         LocalDate lastDay = date.minusDays(1);
         // 日期往前推 直到推到最近一次交易日
-        while (tradeCalendarService.isTradingDay(lastDay)) {
+        while (!tradeCalendarService.isTradingDay(lastDay)) {
             lastDay = lastDay.minusDays(1);
         }
         return lastDay;

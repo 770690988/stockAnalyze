@@ -65,4 +65,12 @@
         AND trade_date BETWEEN #{startTime} AND #{endTime}
         AND trade_date like '%15:00:00'
     </select>
+    <select id="getFinalTradeTimeSingleDay" resultType="com.biubiu.stock.stockanalyze.model.StockMoneyFlow">
+        select * from stock_money_flow
+        WHERE stock_code IN
+        <foreach collection="stockCodeList" item="code" open="(" separator="," close=")">
+            #{code}
+        </foreach>
+        AND trade_date BETWEEN #{startTime} AND #{endTime}
+    </select>
 </mapper>

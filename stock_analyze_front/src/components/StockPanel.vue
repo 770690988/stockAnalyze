@@ -10,6 +10,9 @@
           <el-button size="small" @click="toggleMoneyFlow" :loading="moneyFlowLoading">
             <el-icon><TrendCharts /></el-icon> {{ showMoneyFlow ? '收起资金流向' : '查看资金流向' }}
           </el-button>
+          <el-button size="small" @click="showStockList = !showStockList">
+            <el-icon><List /></el-icon> {{ showStockList ? '收起列表' : '展开列表' }}
+          </el-button>
           <el-button type="primary" size="small" @click="openAddDialog">
             <el-icon><Plus /></el-icon> 添加股票
           </el-button>
@@ -30,7 +33,6 @@
 
         <div v-if="historyLoading" class="chart-loading">加载中...</div>
 
-        <!-- 统一表格：当日和多日都用这个 -->
         <table v-else class="flow-table">
           <thead>
             <tr>
@@ -43,7 +45,9 @@
               <th width="110">大单</th>
               <th width="110">中单</th>
               <th width="110">小单</th>
-              <th v-if="periodDay > 1">趋势</th>
+              <th v-if="periodDay > 1" width="160">量比</th>
+              <th width="220">量能</th>
+              <th width="220">累计量能</th>
             </tr>
           </thead>
           <tbody>
@@ -57,31 +61,52 @@
               <td><span :class="row.largeNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.largeNet) }}</span></td>
               <td><span :class="row.middleNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.middleNet) }}</span></td>
               <td><span :class="row.smallNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.smallNet) }}</span></td>
-              <td v-if="periodDay > 1" class="chart-cell">
+              <td v-if="periodDay > 1" class="chart-cell chart-cell-sm">
+                <div
+                  :ref="el => { if(el) volumeRatioChartRefs[row.stockCode] = el }"
+                  class="mini-chart chart-clickable"
+                  @click="openVolumeRatioZoomChart(row.stockCode)"
+                ></div>
+              </td>
+              <td class="chart-cell">
                 <div
                   :ref="el => { if(el) chartRefs[row.stockCode] = el }"
-                  class="mini-chart"
+                  class="mini-chart chart-clickable"
+                  @click="openZoomChart(row.stockCode, false)"
+                ></div>
+              </td>
+              <td class="chart-cell">
+                <div
+                  :ref="el => { if(el) cumChartRefs[row.stockCode] = el }"
+                  class="mini-chart chart-clickable"
+                  @click="openZoomChart(row.stockCode, true)"
                 ></div>
               </td>
             </tr>
             <!-- 合计行 -->
             <tr class="total-row">
-            <td colspan="4">合计</td>
-            <td><span :class="totalMainNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalMainNet) }}</span></td>
-            <td><span :class="totalSuperNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalSuperNet) }}</span></td>
-            <td><span :class="totalLargeNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalLargeNet) }}</span></td>
-            <td><span :class="totalMiddleNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalMiddleNet) }}</span></td>
-            <td><span :class="totalSmallNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalSmallNet) }}</span></td>
-            <td v-if="periodDay > 1" class="chart-cell">
-              <div ref="totalChartRef" class="mini-chart"></div>
-            </td>
+              <td colspan="4">合计</td>
+              <td><span :class="totalMainNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalMainNet) }}</span></td>
+              <td><span :class="totalSuperNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalSuperNet) }}</span></td>
+              <td><span :class="totalLargeNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalLargeNet) }}</span></td>
+              <td><span :class="totalMiddleNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalMiddleNet) }}</span></td>
+              <td><span :class="totalSmallNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(totalSmallNet) }}</span></td>
+              <td v-if="periodDay > 1" class="chart-cell chart-cell-sm">
+                <div ref="totalVolumeRatioChartRef" class="mini-chart chart-clickable" @click="openVolumeRatioZoomChart('__total__')"></div>
+              </td>
+              <td class="chart-cell">
+                <div ref="totalChartRef" class="mini-chart chart-clickable" @click="openZoomChart('__total__', false)"></div>
+              </td>
+              <td class="chart-cell">
+                <div ref="totalCumChartRef" class="mini-chart chart-clickable" @click="openZoomChart('__total__', true)"></div>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <!-- 股票列表 -->
-      <el-table :data="stockList" v-loading="stockLoading" class="stock-table">
+      <el-table :data="stockList" v-loading="stockLoading" v-show="showStockList" class="stock-table">
         <el-table-column prop="stockCode" label="股票代码" width="110" />
         <el-table-column prop="stockName" label="股票名称" width="110" />
         <el-table-column prop="addReason" label="加入理由" min-width="180" show-overflow-tooltip />
@@ -135,15 +160,27 @@
         <el-button type="primary" @click="submitForm" :loading="submitting">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 图表放大弹窗 -->
+    <el-dialog
+      v-model="chartDialogVisible"
+      :title="chartDialogTitle"
+      width="860px"
+      class="chart-zoom-dialog"
+      @opened="initZoomChart"
+      @closed="disposeZoomChart"
+    >
+      <div ref="zoomChartRef" style="width:100%;height:420px;"></div>
+    </el-dialog>
   </main>
 </template>
 
 <script setup>
 import { ref, watch, nextTick, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Folder, TrendCharts } from '@element-plus/icons-vue'
+import { Plus, Folder, TrendCharts, List } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
-import { getStockList, addStock, updateStock, deleteStock, getMoneyFlow, getMoneyFlowHistory } from '../api/watchlist'
+import { getStockList, addStock, updateStock, deleteStock, getMoneyFlowHistory } from '../api/watchlist'
 
 const props = defineProps({
   selectedBk: { type: Object, default: null },
@@ -165,6 +202,8 @@ const loadStockList = async (bkId) => {
 watch(() => props.selectedBk, (bk) => {
   if (bk) {
     showMoneyFlow.value = false
+    showStockList.value = true
+    periodDay.value = 1
     moneyFlowList.value = []
     loadStockList(bk.id)
   } else {
@@ -215,12 +254,18 @@ const submitForm = async () => {
 
 // ===================== 资金流向 =====================
 const showMoneyFlow = ref(false)
+const showStockList = ref(true)
 const moneyFlowLoading = ref(false)
-const moneyFlowList = ref([])  // 当日或多日最新一天的数据，用于表格展示
-const historyData = ref({})    // 多日历史数据，用于画图
+const moneyFlowList = ref([])
+const historyData = ref({})
 const periodDay = ref(1)
+
 const chartRefs = ref({})
+const cumChartRefs = ref({})
+const volumeRatioChartRefs = ref({})
 const chartInstances = {}
+const cumChartInstances = {}
+const volumeRatioChartInstances = {}
 
 // 合计
 const totalMainNet = computed(() => moneyFlowList.value.reduce((s, r) => s + (r.mainNet || 0), 0))
@@ -231,161 +276,486 @@ const totalSmallNet = computed(() => moneyFlowList.value.reduce((s, r) => s + (r
 
 const toggleMoneyFlow = async () => {
   showMoneyFlow.value = !showMoneyFlow.value
-  if (showMoneyFlow.value) await loadMoneyFlowHistory()
+  if (showMoneyFlow.value) {
+    showStockList.value = false
+    await loadMoneyFlowHistory()
+  } else {
+    showStockList.value = true
+  }
 }
 
 const loadMoneyFlowHistory = async () => {
-  // 销毁旧图表
   Object.values(chartInstances).forEach(c => c.dispose())
   Object.keys(chartInstances).forEach(k => delete chartInstances[k])
+  Object.values(cumChartInstances).forEach(c => c.dispose())
+  Object.keys(cumChartInstances).forEach(k => delete cumChartInstances[k])
+  Object.values(volumeRatioChartInstances).forEach(c => c.dispose())
+  Object.keys(volumeRatioChartInstances).forEach(k => delete volumeRatioChartInstances[k])
   chartRefs.value = {}
+  cumChartRefs.value = {}
+  volumeRatioChartRefs.value = {}
 
-  if (periodDay.value === 1) {
-    moneyFlowLoading.value = true
-    try {
-      moneyFlowList.value = await getMoneyFlow(props.selectedBk.id)
-      historyData.value = {}
-    } finally {
-      moneyFlowLoading.value = false
-    }
-  } else {
-    moneyFlowLoading.value = true
-    try {
-      const res = await getMoneyFlowHistory(props.selectedBk.id, periodDay.value)
+  moneyFlowLoading.value = true
+  try {
+    const res = await getMoneyFlowHistory(props.selectedBk.id, periodDay.value)
 
-      // 按股票分组
-      const grouped = {}
-      res.forEach(item => {
-        if (!grouped[item.stockCode]) grouped[item.stockCode] = []
-        grouped[item.stockCode].push(item)
-      })
+    const grouped = {}
+    res.forEach(item => {
+      if (!grouped[item.stockCode]) grouped[item.stockCode] = []
+      grouped[item.stockCode].push(item)
+    })
 
-      // 按 stockList 顺序排列，取每只股票最新一天显示在表格
-      const sortedList = []
-      const sortedHistory = {}
-      stockList.value.forEach(s => {
-        const records = grouped[s.stockCode]
-        if (records && records.length > 0) {
-          sortedList.push(records[records.length - 1])  // 最新一天放表格
-          sortedHistory[s.stockCode] = records
-        }
-      })
+    const sortedList = []
+    const sortedHistory = {}
+    stockList.value.forEach(s => {
+      const records = grouped[s.stockCode]
+      if (records && records.length > 0) {
+        sortedList.push(records[records.length - 1])
+        sortedHistory[s.stockCode] = records
+      }
+    })
 
-      moneyFlowList.value = sortedList
-      historyData.value = sortedHistory
+    moneyFlowList.value = sortedList
+    historyData.value = sortedHistory
 
-      await nextTick()
-      setTimeout(() => renderMiniCharts(), 100)
-    } finally {
-      moneyFlowLoading.value = false
-    }
+    await nextTick()
+    setTimeout(() => renderMiniCharts(), 100)
+  } finally {
+    moneyFlowLoading.value = false
   }
 }
+
 const totalChartRef = ref(null)
+const totalCumChartRef = ref(null)
+const totalVolumeRatioChartRef = ref(null)
+
+// 逐步累加
+const cumulate = (arr) => arr.reduce((acc, val, i) => {
+  acc.push(+((acc[i - 1] || 0) + val).toFixed(2))
+  return acc
+}, [])
+
+// 当日取 HH:mm，多日取 yyyy-MM-dd
+const formatDateLabel = (tradeDate) => {
+  if (periodDay.value === 1) {
+    return tradeDate.length > 10 ? tradeDate.substring(11, 16) : tradeDate
+  }
+  return tradeDate.substring(0, 10)
+}
+
+// ===================== 当日合计分桶逻辑 =====================
+// 标准时间桶：09:45 起每15分钟，下午 14:00 起每15分钟，收盘 15:00
+const TIME_SLOTS = [
+  '09:45', '10:00', '10:15', '10:30', '10:45', '11:00', '11:15', '11:30',
+  '14:00', '14:15', '14:30', '14:45', '15:00'
+]
+
+const toMinutes = (hhmm) => {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + m
+}
+
+// 找到时间点归属的桶（落在 [slot, slot+15) 范围内）
+const findSlot = (timeStr) => {
+  const t = toMinutes(timeStr)
+  for (let i = 0; i < TIME_SLOTS.length; i++) {
+    const slotStart = toMinutes(TIME_SLOTS[i])
+    // 最后一个桶单独处理（15:00 精确匹配）
+    const slotEnd = i < TIME_SLOTS.length - 1 ? toMinutes(TIME_SLOTS[i + 1]) : slotStart + 1
+    if (t >= slotStart && t < slotEnd) return TIME_SLOTS[i]
+  }
+  return null
+}
+
+// 当日合计：按时间桶聚合所有股票数据
+const buildTotalDataIntraday = () => {
+  const sumBySlot = {}
+  TIME_SLOTS.forEach(slot => {
+    sumBySlot[slot] = { mainNet: 0, superNet: 0, largeNet: 0, middleNet: 0, smallNet: 0, hasData: false }
+  })
+
+  Object.values(historyData.value).forEach(records => {
+    records.forEach(r => {
+      const timeLabel = r.tradeDate.length > 10 ? r.tradeDate.substring(11, 16) : r.tradeDate
+      const slot = findSlot(timeLabel)
+      if (slot) {
+        sumBySlot[slot].mainNet += r.mainNet || 0
+        sumBySlot[slot].superNet += r.superNet || 0
+        sumBySlot[slot].largeNet += r.largeNet || 0
+        sumBySlot[slot].middleNet += r.middleNet || 0
+        sumBySlot[slot].smallNet += r.smallNet || 0
+        sumBySlot[slot].hasData = true
+      }
+    })
+  })
+
+  // 只保留有数据的桶
+  const usedSlots = TIME_SLOTS.filter(s => sumBySlot[s].hasData)
+  return {
+    allLabels: usedSlots,
+    mainNet: usedSlots.map(s => +(sumBySlot[s].mainNet / 10000).toFixed(2)),
+    superNet: usedSlots.map(s => +(sumBySlot[s].superNet / 10000).toFixed(2)),
+    largeNet: usedSlots.map(s => +(sumBySlot[s].largeNet / 10000).toFixed(2)),
+    middleNet: usedSlots.map(s => +(sumBySlot[s].middleNet / 10000).toFixed(2)),
+    smallNet: usedSlots.map(s => +(sumBySlot[s].smallNet / 10000).toFixed(2)),
+  }
+}
+
+// 多日合计：按日期标签聚合
+const buildTotalDataMultiDay = () => {
+  const allLabels = [...new Set(
+    Object.values(historyData.value).flatMap(records =>
+      records.map(r => r.tradeDate.substring(0, 10))
+    )
+  )].sort()
+
+  const sumByLabel = {}
+  allLabels.forEach(label => {
+    sumByLabel[label] = { mainNet: 0, superNet: 0, largeNet: 0, middleNet: 0, smallNet: 0 }
+  })
+  Object.values(historyData.value).forEach(records => {
+    records.forEach(r => {
+      const label = r.tradeDate.substring(0, 10)
+      if (sumByLabel[label]) {
+        sumByLabel[label].mainNet += r.mainNet || 0
+        sumByLabel[label].superNet += r.superNet || 0
+        sumByLabel[label].largeNet += r.largeNet || 0
+        sumByLabel[label].middleNet += r.middleNet || 0
+        sumByLabel[label].smallNet += r.smallNet || 0
+      }
+    })
+  })
+
+  return {
+    allLabels,
+    mainNet: allLabels.map(d => +(sumByLabel[d].mainNet / 10000).toFixed(2)),
+    superNet: allLabels.map(d => +(sumByLabel[d].superNet / 10000).toFixed(2)),
+    largeNet: allLabels.map(d => +(sumByLabel[d].largeNet / 10000).toFixed(2)),
+    middleNet: allLabels.map(d => +(sumByLabel[d].middleNet / 10000).toFixed(2)),
+    smallNet: allLabels.map(d => +(sumByLabel[d].smallNet / 10000).toFixed(2)),
+  }
+}
+
+// 统一入口，根据 periodDay 选择对应方法
+const buildTotalData = () => {
+  return periodDay.value === 1 ? buildTotalDataIntraday() : buildTotalDataMultiDay()
+}
+
+// 构建合计量比数据（多日用，每日取平均）
+const buildTotalVolumeRatioData = () => {
+  const allLabels = [...new Set(
+    Object.values(historyData.value).flatMap(records =>
+      records.map(r => r.tradeDate.substring(0, 10))
+    )
+  )].sort()
+
+  const byLabel = {}
+  allLabels.forEach(label => { byLabel[label] = { sum: 0, count: 0 } })
+  Object.values(historyData.value).forEach(records => {
+    records.forEach(r => {
+      const label = r.tradeDate.substring(0, 10)
+      if (byLabel[label] && r.volumeRatio != null) {
+        byLabel[label].sum += r.volumeRatio
+        byLabel[label].count += 1
+      }
+    })
+  })
+
+  return {
+    allLabels,
+    volumeRatio: allLabels.map(d =>
+      byLabel[d].count > 0 ? +(byLabel[d].sum / byLabel[d].count).toFixed(2) : null
+    ),
+  }
+}
+
+// 量比 mini 图 option
+const buildVolumeRatioOption = (labels, volumeRatio) => ({
+  tooltip: {
+    trigger: 'axis', confine: true,
+    formatter: (params) => {
+      const p = params[0]
+      if (p.value == null) return `${p.axisValue}<br/>量比：-`
+      const color = p.value >= 1 ? '#f56c6c' : '#67c23a'
+      return `${p.axisValue}<br/>${p.marker}量比：<span style="color:${color}">${p.value}</span>`
+    }
+  },
+  legend: { show: false },
+  grid: { left: 2, right: 2, top: 4, bottom: 16 },
+  xAxis: {
+    type: 'category', data: labels,
+    axisLabel: { fontSize: 9, rotate: 30 },
+    axisLine: { show: false }, axisTick: { show: false }
+  },
+  yAxis: { type: 'value', show: false, min: v => Math.min(v.min * 0.95, 0.8) },
+  series: [{
+    name: '量比', type: 'line', data: volumeRatio,
+    smooth: true, symbol: 'circle', symbolSize: 3,
+    lineStyle: { width: 1.5 },
+    itemStyle: { color: p => (p.value ?? 0) >= 1 ? '#f56c6c' : '#67c23a' },
+    areaStyle: {
+      color: {
+        type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+        colorStops: [
+          { offset: 0, color: 'rgba(245,108,108,0.15)' },
+          { offset: 1, color: 'rgba(103,194,58,0.15)' }
+        ]
+      }
+    },
+    markLine: {
+      silent: true, symbol: 'none',
+      lineStyle: { color: '#999', type: 'dashed', width: 1 },
+      data: [{ yAxis: 1 }], label: { show: false }
+    }
+  }]
+})
+
+// 量比放大图 option
+const buildVolumeRatioZoomOption = (labels, volumeRatio) => ({
+  tooltip: {
+    trigger: 'axis', confine: true,
+    formatter: (params) => {
+      const p = params[0]
+      if (p.value == null) return `${p.axisValue}<br/>量比：-`
+      const color = p.value >= 1 ? '#f56c6c' : '#67c23a'
+      return `${p.axisValue}<br/>${p.marker}量比：<span style="color:${color}">${p.value}</span>`
+    }
+  },
+  legend: { show: false },
+  grid: { left: 50, right: 20, top: 16, bottom: 50 },
+  xAxis: {
+    type: 'category', data: labels,
+    axisLabel: { fontSize: 11, rotate: 30 },
+    axisLine: { show: true }, axisTick: { show: true }
+  },
+  yAxis: {
+    type: 'value', show: true,
+    axisLabel: { fontSize: 11 },
+    splitLine: { lineStyle: { color: '#f0f0f0' } },
+    min: v => Math.min(v.min * 0.95, 0.8),
+  },
+  series: [{
+    name: '量比', type: 'line', data: volumeRatio,
+    smooth: true, symbol: 'circle', symbolSize: 5,
+    lineStyle: { width: 2 },
+    itemStyle: { color: p => (p.value ?? 0) >= 1 ? '#f56c6c' : '#67c23a' },
+    areaStyle: {
+      color: {
+        type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+        colorStops: [
+          { offset: 0, color: 'rgba(245,108,108,0.2)' },
+          { offset: 1, color: 'rgba(103,194,58,0.2)' }
+        ]
+      }
+    },
+    markLine: {
+      silent: true, symbol: 'none',
+      lineStyle: { color: '#999', type: 'dashed', width: 1 },
+      data: [{ yAxis: 1 }],
+      label: { formatter: '基准1', fontSize: 10, color: '#999' }
+    }
+  }]
+})
+
+// 资金流向 mini 图 option
+const buildChartOption = (labels, mainNet, superNet, largeNet, middleNet, smallNet) => ({
+  tooltip: {
+    trigger: 'axis', confine: true,
+    formatter: (params) => {
+      let html = `${params[0].axisValue}<br/>`
+      params.forEach(p => {
+        const color = p.value >= 0 ? '#f56c6c' : '#67c23a'
+        html += `${p.marker}${p.seriesName}：<span style="color:${color}">${p.value >= 0 ? '+' : ''}${p.value}万</span><br/>`
+      })
+      return html
+    }
+  },
+  legend: { show: false },
+  grid: { left: 2, right: 2, top: 4, bottom: 16 },
+  xAxis: {
+    type: 'category', data: labels,
+    axisLabel: { fontSize: 9, rotate: 30 },
+    axisLine: { show: false }, axisTick: { show: false }
+  },
+  yAxis: { type: 'value', show: false },
+  series: [
+    { name: '主力', type: 'bar', data: mainNet, itemStyle: { color: p => p.value >= 0 ? '#f56c6c' : '#67c23a' }, barMaxWidth: 8 },
+    { name: '超大单', type: 'line', data: superNet, smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#f56c6c' },
+    { name: '大单', type: 'line', data: largeNet, smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#e6a23c' },
+    { name: '中单', type: 'line', data: middleNet, smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#e6d23c' },
+    { name: '小单', type: 'line', data: smallNet, smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#67c23a' },
+  ]
+})
+
+// 资金流向放大图 option
+const buildZoomChartOption = (labels, mainNet, superNet, largeNet, middleNet, smallNet) => ({
+  tooltip: {
+    trigger: 'axis', confine: true,
+    formatter: (params) => {
+      let html = `${params[0].axisValue}<br/>`
+      params.forEach(p => {
+        const color = p.value >= 0 ? '#f56c6c' : '#67c23a'
+        html += `${p.marker}${p.seriesName}：<span style="color:${color}">${p.value >= 0 ? '+' : ''}${p.value}万</span><br/>`
+      })
+      return html
+    }
+  },
+  legend: {
+    show: true, bottom: 0,
+    data: ['主力', '超大单', '大单', '中单', '小单'],
+    textStyle: { fontSize: 12 }
+  },
+  grid: { left: 70, right: 20, top: 16, bottom: 60 },
+  xAxis: {
+    type: 'category', data: labels,
+    axisLabel: { fontSize: 11, rotate: 30 },
+    axisLine: { show: true }, axisTick: { show: true }
+  },
+  yAxis: {
+    type: 'value', show: true,
+    axisLabel: { formatter: v => `${v}万`, fontSize: 11 },
+    splitLine: { lineStyle: { color: '#f0f0f0' } }
+  },
+  series: [
+    { name: '主力', type: 'bar', data: mainNet, itemStyle: { color: p => p.value >= 0 ? '#f56c6c' : '#67c23a' }, barMaxWidth: 20 },
+    { name: '超大单', type: 'line', data: superNet, smooth: true, lineStyle: { width: 2 }, symbol: 'circle', symbolSize: 4, color: '#f56c6c' },
+    { name: '大单', type: 'line', data: largeNet, smooth: true, lineStyle: { width: 2 }, symbol: 'circle', symbolSize: 4, color: '#e6a23c' },
+    { name: '中单', type: 'line', data: middleNet, smooth: true, lineStyle: { width: 2 }, symbol: 'circle', symbolSize: 4, color: '#e6d23c' },
+    { name: '小单', type: 'line', data: smallNet, smooth: true, lineStyle: { width: 2 }, symbol: 'circle', symbolSize: 4, color: '#67c23a' },
+  ]
+})
 
 const renderMiniCharts = () => {
-  // 各股票迷你图
   Object.entries(historyData.value).forEach(([code, records]) => {
-    const el = chartRefs.value[code]
-    if (!el) return
-
-    const chart = echarts.init(el)
-    chartInstances[code] = chart
-
-    const dates = records.map(r => r.tradeDate.substring(0, 10))
+    const labels = records.map(r => formatDateLabel(r.tradeDate))
     const mainNet = records.map(r => +(r.mainNet / 10000).toFixed(2))
     const superNet = records.map(r => +(r.superNet / 10000).toFixed(2))
     const largeNet = records.map(r => +(r.largeNet / 10000).toFixed(2))
     const middleNet = records.map(r => +(r.middleNet / 10000).toFixed(2))
     const smallNet = records.map(r => +(r.smallNet / 10000).toFixed(2))
+    const volumeRatio = records.map(r => r.volumeRatio != null ? +r.volumeRatio.toFixed(2) : null)
 
-    chart.setOption({
-      tooltip: {
-        trigger: 'axis', confine: true,
-        formatter: (params) => {
-          let html = `${params[0].axisValue}<br/>`
-          params.forEach(p => {
-            const color = p.value >= 0 ? '#f56c6c' : '#67c23a'
-            html += `${p.marker}${p.seriesName}：<span style="color:${color}">${p.value >= 0 ? '+' : ''}${p.value}万</span><br/>`
-          })
-          return html
-        }
-      },
-      legend: { show: false },
-      grid: { left: 2, right: 2, top: 4, bottom: 16 },
-      xAxis: {
-        type: 'category', data: dates,
-        axisLabel: { fontSize: 9, rotate: 30 },
-        axisLine: { show: false }, axisTick: { show: false }
-      },
-      yAxis: { type: 'value', show: false },
-      series: [
-        { name: '主力', type: 'bar', data: mainNet, itemStyle: { color: p => p.value >= 0 ? '#f56c6c' : '#67c23a' }, barMaxWidth: 8 },
-        { name: '超大单', type: 'line', data: superNet, smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#e6a23c' },
-        { name: '大单', type: 'line', data: largeNet, smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#409eff' },
-        { name: '中单', type: 'line', data: middleNet, smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#9c27b0' },
-        { name: '小单', type: 'line', data: smallNet, smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#909399' },
-      ]
-    })
+    // 量比图（仅多日）
+    if (periodDay.value > 1) {
+      const vrEl = volumeRatioChartRefs.value[code]
+      if (vrEl) {
+        const vrChart = echarts.init(vrEl)
+        volumeRatioChartInstances[code] = vrChart
+        vrChart.setOption(buildVolumeRatioOption(labels, volumeRatio))
+      }
+    }
+
+    // 量能图
+    const el = chartRefs.value[code]
+    if (el) {
+      const chart = echarts.init(el)
+      chartInstances[code] = chart
+      chart.setOption(buildChartOption(labels, mainNet, superNet, largeNet, middleNet, smallNet))
+    }
+
+    // 累计量能图
+    const cumEl = cumChartRefs.value[code]
+    if (cumEl) {
+      const cumChart = echarts.init(cumEl)
+      cumChartInstances[code] = cumChart
+      cumChart.setOption(buildChartOption(labels, cumulate(mainNet), cumulate(superNet), cumulate(largeNet), cumulate(middleNet), cumulate(smallNet)))
+    }
   })
 
-  // 合计图
-  if (totalChartRef.value && Object.keys(historyData.value).length > 0) {
-    const allDates = [...new Set(
-      Object.values(historyData.value).flatMap(records =>
-        records.map(r => r.tradeDate.substring(0, 10))
-      )
-    )].sort()
+  if (Object.keys(historyData.value).length > 0) {
+    // 合计量比图（仅多日）
+    if (periodDay.value > 1 && totalVolumeRatioChartRef.value) {
+      const { allLabels, volumeRatio } = buildTotalVolumeRatioData()
+      const vrTotalChart = echarts.init(totalVolumeRatioChartRef.value)
+      volumeRatioChartInstances['__total__'] = vrTotalChart
+      vrTotalChart.setOption(buildVolumeRatioOption(allLabels, volumeRatio))
+    }
 
-    const sumByDate = {}
-    allDates.forEach(date => {
-      sumByDate[date] = { mainNet: 0, superNet: 0, largeNet: 0, middleNet: 0, smallNet: 0 }
-    })
-    Object.values(historyData.value).forEach(records => {
-      records.forEach(r => {
-        const date = r.tradeDate.substring(0, 10)
-        if (sumByDate[date]) {
-          sumByDate[date].mainNet += r.mainNet || 0
-          sumByDate[date].superNet += r.superNet || 0
-          sumByDate[date].largeNet += r.largeNet || 0
-          sumByDate[date].middleNet += r.middleNet || 0
-          sumByDate[date].smallNet += r.smallNet || 0
-        }
-      })
-    })
+    // 合计量能图（当日用分桶，多日用日期）
+    const { allLabels, mainNet, superNet, largeNet, middleNet, smallNet } = buildTotalData()
 
-    const totalChart = echarts.init(totalChartRef.value)
-    chartInstances['__total__'] = totalChart
+    if (totalChartRef.value) {
+      const totalChart = echarts.init(totalChartRef.value)
+      chartInstances['__total__'] = totalChart
+      totalChart.setOption(buildChartOption(allLabels, mainNet, superNet, largeNet, middleNet, smallNet))
+    }
 
-    totalChart.setOption({
-      tooltip: {
-        trigger: 'axis', confine: true,
-        formatter: (params) => {
-          let html = `${params[0].axisValue}<br/>`
-          params.forEach(p => {
-            const color = p.value >= 0 ? '#f56c6c' : '#67c23a'
-            html += `${p.marker}${p.seriesName}：<span style="color:${color}">${p.value >= 0 ? '+' : ''}${p.value}万</span><br/>`
-          })
-          return html
-        }
-      },
-      legend: { show: false },
-      grid: { left: 2, right: 2, top: 4, bottom: 16 },
-      xAxis: {
-        type: 'category', data: allDates,
-        axisLabel: { fontSize: 9, rotate: 30 },
-        axisLine: { show: false }, axisTick: { show: false }
-      },
-      yAxis: { type: 'value', show: false },
-      series: [
-        { name: '主力', type: 'bar', data: allDates.map(d => +(sumByDate[d].mainNet / 10000).toFixed(2)), itemStyle: { color: p => p.value >= 0 ? '#f56c6c' : '#67c23a' }, barMaxWidth: 8 },
-        { name: '超大单', type: 'line', data: allDates.map(d => +(sumByDate[d].superNet / 10000).toFixed(2)), smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#e6a23c' },
-        { name: '大单', type: 'line', data: allDates.map(d => +(sumByDate[d].largeNet / 10000).toFixed(2)), smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#409eff' },
-        { name: '中单', type: 'line', data: allDates.map(d => +(sumByDate[d].middleNet / 10000).toFixed(2)), smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#9c27b0' },
-        { name: '小单', type: 'line', data: allDates.map(d => +(sumByDate[d].smallNet / 10000).toFixed(2)), smooth: true, lineStyle: { width: 1 }, symbol: 'none', color: '#909399' },
-      ]
-    })
+    // 合计累计量能图
+    if (totalCumChartRef.value) {
+      const totalCumChart = echarts.init(totalCumChartRef.value)
+      cumChartInstances['__total__'] = totalCumChart
+      totalCumChart.setOption(buildChartOption(allLabels, cumulate(mainNet), cumulate(superNet), cumulate(largeNet), cumulate(middleNet), cumulate(smallNet)))
+    }
   }
+}
+
+// ===================== 图表放大弹窗 =====================
+const chartDialogVisible = ref(false)
+const chartDialogTitle = ref('')
+const zoomChartRef = ref(null)
+let zoomChartInstance = null
+const pendingChartData = ref(null)
+
+const openVolumeRatioZoomChart = (code) => {
+  let labels, volumeRatio
+  if (code === '__total__') {
+    const total = buildTotalVolumeRatioData()
+    labels = total.allLabels
+    volumeRatio = total.volumeRatio
+    chartDialogTitle.value = '合计 — 量比'
+  } else {
+    const records = historyData.value[code]
+    const stockName = moneyFlowList.value.find(r => r.stockCode === code)?.stockName || code
+    labels = records.map(r => formatDateLabel(r.tradeDate))
+    volumeRatio = records.map(r => r.volumeRatio != null ? +r.volumeRatio.toFixed(2) : null)
+    chartDialogTitle.value = `${stockName}（${code}）— 量比`
+  }
+  pendingChartData.value = { type: 'volumeRatio', labels, volumeRatio }
+  chartDialogVisible.value = true
+}
+
+const openZoomChart = (code, isCum) => {
+  let labels, mainNet, superNet, largeNet, middleNet, smallNet
+  if (code === '__total__') {
+    const total = buildTotalData()
+    labels = total.allLabels
+    mainNet = total.mainNet; superNet = total.superNet; largeNet = total.largeNet
+    middleNet = total.middleNet; smallNet = total.smallNet
+    chartDialogTitle.value = isCum ? '合计 — 累计量能' : '合计 — 量能'
+  } else {
+    const records = historyData.value[code]
+    const stockName = moneyFlowList.value.find(r => r.stockCode === code)?.stockName || code
+    labels = records.map(r => formatDateLabel(r.tradeDate))
+    mainNet = records.map(r => +(r.mainNet / 10000).toFixed(2))
+    superNet = records.map(r => +(r.superNet / 10000).toFixed(2))
+    largeNet = records.map(r => +(r.largeNet / 10000).toFixed(2))
+    middleNet = records.map(r => +(r.middleNet / 10000).toFixed(2))
+    smallNet = records.map(r => +(r.smallNet / 10000).toFixed(2))
+    chartDialogTitle.value = isCum ? `${stockName}（${code}）— 累计量能` : `${stockName}（${code}）— 量能`
+  }
+  if (isCum) {
+    mainNet = cumulate(mainNet); superNet = cumulate(superNet); largeNet = cumulate(largeNet)
+    middleNet = cumulate(middleNet); smallNet = cumulate(smallNet)
+  }
+  pendingChartData.value = { type: 'flow', labels, mainNet, superNet, largeNet, middleNet, smallNet }
+  chartDialogVisible.value = true
+}
+
+const initZoomChart = () => {
+  if (!pendingChartData.value) return
+  if (zoomChartInstance) zoomChartInstance.dispose()
+  zoomChartInstance = echarts.init(zoomChartRef.value)
+  const d = pendingChartData.value
+  if (d.type === 'volumeRatio') {
+    zoomChartInstance.setOption(buildVolumeRatioZoomOption(d.labels, d.volumeRatio))
+  } else {
+    zoomChartInstance.setOption(buildZoomChartOption(d.labels, d.mainNet, d.superNet, d.largeNet, d.middleNet, d.smallNet))
+  }
+}
+
+const disposeZoomChart = () => {
+  if (zoomChartInstance) { zoomChartInstance.dispose(); zoomChartInstance = null }
+  pendingChartData.value = null
 }
 
 const formatAmount = (val) => {
@@ -427,8 +797,7 @@ const formatAmount = (val) => {
   padding: 12px 16px;
   background: #fafbfc;
   border-bottom: 1px solid #f0f0f0;
-  flex-shrink: 0;
-  max-height: 500px;
+  flex: 1;
   overflow-y: auto;
 }
 
@@ -441,7 +810,6 @@ const formatAmount = (val) => {
 
 .section-label { font-size: 12px; color: #999; font-weight: 500; }
 
-/* 自定义表格 */
 .flow-table {
   width: 100%;
   border-collapse: collapse;
@@ -475,12 +843,29 @@ const formatAmount = (val) => {
 
 .chart-cell {
   min-width: 200px;
+  max-width: 220px;
+  width: 220px;
   padding: 4px 8px !important;
+}
+
+.chart-cell-sm {
+  min-width: 140px;
+  max-width: 160px;
+  width: 160px;
 }
 
 .mini-chart {
   width: 100%;
   height: 80px;
+}
+
+.chart-clickable {
+  cursor: zoom-in;
+  transition: opacity 0.15s;
+}
+
+.chart-clickable:hover {
+  opacity: 0.75;
 }
 
 .chart-loading {

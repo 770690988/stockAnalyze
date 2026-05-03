@@ -41,11 +41,11 @@ public class TradeCalendarService {
         // 先看数据库有没有记录
         TradeCalendar calendar = tradeCalendarMapper.selectByDate(date);
         if (calendar != null) {
-            return calendar.getIsTrading() != 1;
+            return calendar.getIsTrading() != 0;
         }
         // 数据库没有记录，降级判断：周一到周五视为交易日
         DayOfWeek dow = date.getDayOfWeek();
-        return dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY;
+        return dow != DayOfWeek.SATURDAY && dow != DayOfWeek.SUNDAY;
     }
 
     public LocalDateTime getLatestWorkDay(LocalDateTime dateTime) {
@@ -72,7 +72,7 @@ public class TradeCalendarService {
         LocalTime marketClose = LocalTime.of(15, 0);
         LocalDateTime latestWorkDay = getLatestWorkDay(dateTime);
         LocalDate date = latestWorkDay.toLocalDate();
-        for (int i = 0; i < periodDay; i++) {
+        for (int i = 0; i < periodDay - 1; i++) {
             date = getLastWorkDay(date);
         }
 
@@ -82,9 +82,14 @@ public class TradeCalendarService {
     public LocalDate getLastWorkDay(LocalDate date) {
         LocalDate lastDay = date.minusDays(1);
         // 日期往前推 直到推到最近一次交易日
-        while (isTradingDay(lastDay)) {
+        while (!isTradingDay(lastDay)) {
             lastDay = lastDay.minusDays(1);
         }
         return lastDay;
+    }
+
+    public LocalDateTime getDayStart(LocalDateTime startDay) {
+        LocalTime marketOpen  = LocalTime.of(9, 15);
+        return LocalDateTime.of(startDay.toLocalDate(), marketOpen);
     }
 }

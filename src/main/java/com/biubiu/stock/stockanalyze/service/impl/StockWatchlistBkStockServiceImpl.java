@@ -98,6 +98,12 @@ public class StockWatchlistBkStockServiceImpl implements StockWatchlistBkStockSe
         if (CollectionUtils.isEmpty(stockCodeList)){
             return new ArrayList<>();
         }
+
+        // 如果只有一天的返回当日所有的分时数据
+        if (request.getPeriodDay() == 1) {
+            startDay = tradeCalendarService.getDayStart(startDay);
+            return stockMoneyFlowMapper.getFinalTradeTimeSingleDay(stockCodeList, startDay, endDay);
+        }
         return stockMoneyFlowMapper.getFinalTradeTimeBetween(stockCodeList, startDay, endDay);
     }
 }
