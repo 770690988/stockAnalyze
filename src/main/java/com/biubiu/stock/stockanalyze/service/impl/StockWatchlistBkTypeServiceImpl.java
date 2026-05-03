@@ -26,6 +26,9 @@ public class StockWatchlistBkTypeServiceImpl implements StockWatchlistBkTypeServ
 
     @Override
     public void add(StockWatchlistBkType bkType) {
+        if (bkType.getTypeValue() == null) {
+            bkType.setTypeValue(bkTypeMapper.getMaxTypeValue() + 1);
+        }
         bkType.setCreateTime(LocalDateTime.now());
         bkType.setUpdateTime(LocalDateTime.now());
         bkTypeMapper.insert(bkType);

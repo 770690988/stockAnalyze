@@ -3,4 +3,8 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.biubiu.stock.stockanalyze.mapper.StockWatchlistBkTypeMapper">
 
+    <select id="getMaxTypeValue" resultType="java.lang.Integer">
+        SELECT MAX(type_value)
+        FROM stock_watchlist_bk_type
+    </select>
 </mapper>

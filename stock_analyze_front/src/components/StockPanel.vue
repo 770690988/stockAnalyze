@@ -208,15 +208,34 @@ const moneyFlowList = ref([])
 const moneyFlowLoading = ref(false)
 
 const loadMoneyFlow = async () => {
-  moneyFlowLoading.value = true
+  moneyFlowLoading.value = !moneyFlowLoading.value
+  showMoneyFlow.value = !showMoneyFlow.value
   try {
     const res = await getMoneyFlow(props.selectedBk.id)
     moneyFlowList.value = res.data
-    showMoneyFlow.value = moneyFlowLoading.value
   } finally {
     moneyFlowLoading.value = false
   }
 }
+
+
+// const loadMoneyFlow = async () => {
+//   // 如果已经显示，则隐藏并返回
+//   if (showMoneyFlow.value) {
+//     showMoneyFlow.value = false
+//     moneyFlowList.value = []
+//     return
+//   }
+
+//   moneyFlowLoading.value = true
+//   try {
+//     const res = await getMoneyFlow(props.selectedBk.id)
+//     moneyFlowList.value = res.data
+//     showMoneyFlow.value = true  // ✅ 直接设为 true
+//   } finally {
+//     moneyFlowLoading.value = false
+//   }
+// }
 
 const formatAmount = (val) => {
   if (val === null || val === undefined) return '-'

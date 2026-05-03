@@ -5,7 +5,7 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
-      path: '/watchlist',
+      path: '/',
       component: WatchlistManager
     }
   ]

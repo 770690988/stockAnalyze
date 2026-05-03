@@ -7,4 +7,5 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface StockWatchlistBkTypeMapper extends BaseMapper<StockWatchlistBkType> {
 
+    Integer getMaxTypeValue();
 }

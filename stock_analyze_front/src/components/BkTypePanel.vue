@@ -98,7 +98,6 @@ const formRef = ref()
 const form = ref({ typeLabel: '', typeValue: null, sort: 0, remark: '' })
 const rules = {
   typeLabel: [{ required: true, message: '请输入类型名称', trigger: 'blur' }],
-  typeValue: [{ required: true, message: '请输入类型值', trigger: 'blur' }],
 }
 
 const openAddDialog = () => {
