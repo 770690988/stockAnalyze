@@ -1,5 +1,7 @@
 # stockAnalyze 股票分析
 ## 前端
+npm 版本 20.20.2
+
 ```vue
 cd stock_analyze_front
 npm run dev
