@@ -15,4 +15,17 @@
         FROM stock_watchlist_bk_stock
         WHERE bk_id = #{id}
     </select>
+    <select id="getByBkIdAndStockCode" resultType="com.biubiu.stock.stockanalyze.model.StockWatchlistBkStock">
+        SELECT * FROM stock_watchlist_bk_stock
+        WHERE bk_id = #{bkId} AND stock_code = #{stockCode}
+        LIMIT 1
+    </select>
+
+    <delete id="deleteBatch">
+        DELETE FROM stock_watchlist_bk_stock
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
 </mapper>

@@ -20,4 +20,8 @@ public interface StockWatchlistBkStockMapper extends BaseMapper<StockWatchlistBk
     List<StockMoneyFlow> getLatestMoneyFlowByWatchBkId(@Param("bkId") Integer bkId);
 
     List<String> getStockListByBkId(@Param("id") Integer id);
+
+    StockWatchlistBkStock getByBkIdAndStockCode(@Param("bkId") Integer bkId, @Param("stockCode") String stockCode);
+
+    Integer deleteBatch(List<Integer> ids);
 }

@@ -29,4 +29,6 @@ public interface StockWatchlistBkStockService {
     List<StockMoneyFlow> getLatestMoneyFlowByBkId(Integer bkId);
 
     List<StockMoneyFlow> getMoneyFlowPeriod(MoneyFlowPeriodRequest request);
+
+    Integer deleteBatch(List<Integer> ids);
 }

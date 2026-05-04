@@ -45,16 +45,29 @@ public class StockWatchlistBkStockServiceImpl implements StockWatchlistBkStockSe
 
     @Override
     public boolean add(StockWatchlistBkStock stock) {
+        // 幂等：已存在则跳过
+        StockWatchlistBkStock existing = watchBkStockMapper.getByBkIdAndStockCode(stock.getBkId(), stock.getStockCode());
+        if (existing != null) {
+            return true;
+        }
+
         LocalDateTime latestTradeDate = stockMoneyFlowMapper.getLatestTradeDate();
         StockMoneyFlow stockMoneyFlow = stockMoneyFlowMapper.getByStockCodeAndTradeDate(
-                stock.getStockCode(),
-                latestTradeDate);
+                stock.getStockCode(), latestTradeDate);
+
+        // 修复1：stockMoneyFlow 可能为 null（该股票暂无行情数据） 其实也就没必要添加
+        if (stockMoneyFlow == null) {
+            log.error("插入失败，code={}, error={}", stock.getStockCode(), "该股票暂无行情数据");
+            return false;
+        }
         stock.setStockName(stockMoneyFlow.getStockName());
         stock.setCreateTime(LocalDateTime.now());
         stock.setUpdateTime(LocalDateTime.now());
+
         try {
             watchBkStockMapper.insert(stock);
         } catch (Exception e) {
+            log.error("插入失败，code={}, error={}", stock.getStockCode(), e.getMessage());
             return false;
         }
         return true;
@@ -105,5 +118,11 @@ public class StockWatchlistBkStockServiceImpl implements StockWatchlistBkStockSe
             return stockMoneyFlowMapper.getFinalTradeTimeSingleDay(stockCodeList, startDay, endDay);
         }
         return stockMoneyFlowMapper.getFinalTradeTimeBetween(stockCodeList, startDay, endDay);
+    }
+
+    @Override
+    public Integer deleteBatch(List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) return 0;
+        return watchBkStockMapper.deleteBatch(ids);
     }
 }

@@ -29,8 +29,12 @@ export const getStockList = (bkId) => request.get(`/watchlist/bk/stock/list/${bk
 
 export const addStock = (data) => request.post('/watchlist/bk/stock/add', data)
 
+export const addBatchStock = (data) => request.post('/watchlist/bk/stock/addBatch', data)
+
 export const updateStock = (data) => request.post('/watchlist/bk/stock/update', data)
 
 export const deleteStock = (id) => request.post(`/watchlist/bk/stock/delete/${id}`)
+
+export const deleteBatchStock = (ids) => request.post('/watchlist/bk/stock/deleteBatch', ids)
 
 export const getMoneyFlow = (bkId) => request.get(`/watchlist/bk/stock/moneyFlow/${bkId}`)

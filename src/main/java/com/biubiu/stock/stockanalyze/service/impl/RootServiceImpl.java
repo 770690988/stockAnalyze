@@ -553,7 +553,7 @@ public class RootServiceImpl implements RootService {
         LocalDateTime result;
 
         //判断当天是否是交易日
-        if (tradeCalendarService.isTradingDay(currentDate)) {
+        if (!tradeCalendarService.isTradingDay(currentDate)) {
             result = LocalDateTime.of(lastWorkDay, marketClose);
             return result.format(formatter);
         }

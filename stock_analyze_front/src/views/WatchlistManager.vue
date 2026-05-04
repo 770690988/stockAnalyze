@@ -10,6 +10,7 @@
           <el-icon><Setting /></el-icon> 板块类型管理
         </el-button>
         <el-button type="danger" plain size="small" @click="handleLogout">退出登录</el-button>
+        <span style="font-size:13px;color:#606266;">👤 {{ username }}</span>
       </div>
     </header>
 
@@ -44,6 +45,8 @@ import StockPanel from '../components/StockPanel.vue'
 import BkTypePanel from '../components/BkTypePanel.vue'
 import { getBkList } from '../api/watchlist'
 import { useRouter } from 'vue-router'
+
+const username = localStorage.getItem('username')
 
 const bkList = ref([])
 const selectedBk = ref(null)
