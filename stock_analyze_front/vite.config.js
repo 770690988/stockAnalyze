@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
+  base: process.env.NODE_ENV === 'production' ? '/stock/' : '/',
   plugins: [vue()],
   server: {
     proxy: {
@@ -9,7 +10,7 @@ export default defineConfig({
         target: 'http://localhost:8082',
         changeOrigin: true
       },
-      '/api': {                          // ← 要在 proxy 里面
+      '/api': {
         target: 'http://localhost:8082',
         changeOrigin: true
       }

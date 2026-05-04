@@ -1,9 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import WatchlistManager from '../views/WatchlistManager.vue'
-import Login from '../views/Login.vue'  // ← 加这行
+import Login from '../views/Login.vue'
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/login',
