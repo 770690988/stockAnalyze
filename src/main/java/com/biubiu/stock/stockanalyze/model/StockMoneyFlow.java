@@ -98,7 +98,7 @@ public class StockMoneyFlow {
         out += "股票代码:" + data.getStockCode() + " \n";
         out += "股票名称:" + data.getStockName() + " \n";
         out += "股票价格:" + data.getStockPrice() + " \n";
-        out += "股票涨幅:" + data.getStockPriceRate() + " \n";
+        out += "股票涨幅:" + data.getStockPriceRate() + "% \n";
         out += "股票主力流入〇〇:" + NumChangeUtis.getNumChangeStr(data.getMainNet()) + " \n";
         out += "股票净超大单流入:" + NumChangeUtis.getNumChangeStr(data.getSuperNet()) + " \n";
         out += "股票大单流入〇〇:" + NumChangeUtis.getNumChangeStr(data.getLargeNet()) + " \n";

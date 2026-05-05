@@ -33,7 +33,9 @@ public class StockScheduleTask {
         if (environment.equals(EnvironmentEnum.PRODUCT.environment)) {
             rootService.getWxAnalyzeMessage();
             Thread.sleep(2000);
-            rootService.getWxSelectedAnalyzeMessage();
+            rootService.getWxSelectedAnalyzeMessage(); // 获取自选股票信息数据
+            Thread.sleep(2000);
+            rootService.getWxBkAnalyzeMessage();  // 获取自选板块信息数据
         } else {
             log.info("current environment is not product");
         }

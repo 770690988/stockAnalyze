@@ -21,4 +21,6 @@ public interface TradeCalendarMapper extends BaseMapper<TradeCalendar> {
 
     List<TradeCalendar> selectByDateRange(@Param("startDate") LocalDate startDate,
                                           @Param("endDate") LocalDate endDate);
+
+    List<LocalDate> selectHolidaysBetween(@Param("start") LocalDate start, @Param("end") LocalDate end);
 }

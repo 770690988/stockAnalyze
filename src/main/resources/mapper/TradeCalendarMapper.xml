@@ -19,6 +19,11 @@
         WHERE trade_date BETWEEN #{startDate} AND #{endDate}
         ORDER BY trade_date
     </select>
+    <select id="selectHolidaysBetween" resultType="java.time.LocalDate">
+        SELECT trade_date FROM trade_calendar
+        WHERE trade_date BETWEEN #{start} AND #{end}
+          AND is_trading = 0
+    </select>
 
     <insert id="batchUpsert">
         INSERT INTO trade_calendar (trade_date, is_trading, remark)

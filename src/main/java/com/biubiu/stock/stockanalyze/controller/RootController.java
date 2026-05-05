@@ -87,7 +87,7 @@ public class RootController {
     //发送股票统计数据
     @RequestMapping("/sendWxMessage")
     private void sendWxMessage() {
-        rootService.getWxAnalyzeMessage();
+        rootService.getWxBkAnalyzeMessage();
     }
 
     //保存数据库数据

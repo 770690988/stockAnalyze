@@ -7,14 +7,12 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.biubiu.stock.stockanalyze.component.DatabaseBackupTask;
 import com.biubiu.stock.stockanalyze.component.TradeCalendarService;
 import com.biubiu.stock.stockanalyze.enums.UnitEnum;
-import com.biubiu.stock.stockanalyze.mapper.SelectedStockMapper;
-import com.biubiu.stock.stockanalyze.mapper.StockBkMapper;
-import com.biubiu.stock.stockanalyze.mapper.StockMoneyFlowMapper;
-import com.biubiu.stock.stockanalyze.model.SelectedStock;
-import com.biubiu.stock.stockanalyze.model.StockBk;
-import com.biubiu.stock.stockanalyze.model.StockMoneyFlow;
+import com.biubiu.stock.stockanalyze.mapper.*;
+import com.biubiu.stock.stockanalyze.model.*;
+import com.biubiu.stock.stockanalyze.model.message.BkAnalyzeResult;
 import com.biubiu.stock.stockanalyze.service.RootService;
 import com.biubiu.stock.stockanalyze.service.impl.WxNotifyService;
+import com.biubiu.stock.stockanalyze.utils.NumChangeUtis;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
@@ -40,6 +38,10 @@ public class RootServiceImpl implements RootService {
     private final SelectedStockMapper selectedStockMapper;
 
     private final StockMoneyFlowMapper stockMoneyFlowMapper;
+
+    private final StockWatchlistBkMapper watchlistBkMapper;
+
+    private final StockWatchlistBkStockMapper watchlistBkStockMapper;
 
     private final DatabaseBackupTask databaseBackupTask;
 
@@ -580,6 +582,89 @@ public class RootServiceImpl implements RootService {
             lastDay = lastDay.minusDays(1);
         }
         return lastDay;
+    }
+
+
+    public void getWxBkAnalyzeMessage() {
+        log.info("开始推送板块资金分析消息...");
+
+        LocalDateTime currentTime = stockMoneyFlowMapper.getLatestTradeDate();
+        LocalDateTime fifteenMinutesAgo = currentTime.minusMinutes(15);
+
+        List<StockWatchlistBk> bkList = watchlistBkMapper.selectList(
+                new LambdaQueryWrapper<StockWatchlistBk>()
+                        .eq(StockWatchlistBk::getUserId, 1)
+        );
+
+        if (bkList.isEmpty()) return;
+
+        // 先把每个板块的数据收集成对象
+        List<BkAnalyzeResult> resultList = new ArrayList<>();
+
+        for (StockWatchlistBk bk : bkList) {
+            List<StockWatchlistBkStock> bkStocks = watchlistBkStockMapper.selectList(
+                    new LambdaQueryWrapper<StockWatchlistBkStock>()
+                            .eq(StockWatchlistBkStock::getBkId, bk.getId())
+            );
+            if (bkStocks.isEmpty()) continue;
+
+            List<String> codeList = bkStocks.stream()
+                    .map(StockWatchlistBkStock::getStockCode)
+                    .collect(Collectors.toList());
+
+            List<StockMoneyFlow> flowList = stockMoneyFlowMapper
+                    .getTradeTimeBetweenAndCodeList(fifteenMinutesAgo, currentTime, codeList);
+
+            if (flowList.isEmpty()) continue;
+
+            double totalMainNet = flowList.stream().mapToDouble(s -> s.getMainNet().doubleValue()).sum();
+            double totalSuperNet = flowList.stream().mapToDouble(s -> s.getSuperNet().doubleValue()).sum();
+            double totalLargeNet = flowList.stream().mapToDouble(s -> s.getLargeNet().doubleValue()).sum();
+            double totalMiddleNet = flowList.stream().mapToDouble(s -> s.getMiddleNet().doubleValue()).sum();
+            double totalSmallNet = flowList.stream().mapToDouble(s -> s.getSmallNet().doubleValue()).sum();
+            double avgPriceRate = flowList.stream().mapToDouble(s -> s.getStockPriceRate().doubleValue()).average().orElse(0);
+
+            resultList.add(new BkAnalyzeResult(bk.getBkName(), totalMainNet, totalSuperNet, totalLargeNet, totalMiddleNet, totalSmallNet, avgPriceRate, flowList));
+        }
+
+        // 按主力净流入从大到小排序
+        resultList.sort(Comparator.comparingDouble(r -> -r.getTotalMainNet()));
+
+        StringBuilder content = new StringBuilder();
+
+        // 先输出所有板块概览
+        content.append("===== 板块概览 =====\n");
+        for (BkAnalyzeResult r : resultList) {
+            content.append(r.getBkName()).append("\n");
+            content.append("涨跌幅：").append(String.format("%.2f", r.getAvgPriceRate())).append("%  ");
+            content.append("主力：").append(NumChangeUtis.getNumChangeStr(BigDecimal.valueOf(r.getTotalMainNet()))).append("\n\n");
+        }
+
+        for (BkAnalyzeResult r : resultList) {
+            content.append("==========\n").append(r.getBkName()).append("\n==========\n");
+            content.append("板块涨跌幅(均值)：").append(String.format("%.2f", r.getAvgPriceRate())).append("%\n");
+            content.append("主力净流入合计：").append(NumChangeUtis.getNumChangeStr(BigDecimal.valueOf(r.getTotalMainNet()))).append("\n");
+            content.append("超大单净流入合计：").append(NumChangeUtis.getNumChangeStr(BigDecimal.valueOf(r.getTotalSuperNet()))).append("\n");
+            content.append("大单净流入合计：").append(NumChangeUtis.getNumChangeStr(BigDecimal.valueOf(r.getTotalLargeNet()))).append("\n");
+            content.append("中单净流入合计：").append(NumChangeUtis.getNumChangeStr(BigDecimal.valueOf(r.getTotalMiddleNet()))).append("\n");
+            content.append("小单净流入合计：").append(NumChangeUtis.getNumChangeStr(BigDecimal.valueOf(r.getTotalSmallNet()))).append("\n\n");
+
+            content.append("\n--- 主力净流入 前3 ---\n");
+            r.getFlowList().stream()
+                    .sorted(Comparator.comparingDouble(s -> -s.getMainNet().doubleValue()))
+                    .limit(3)
+                    .forEach(s -> content.append(StockMoneyFlow.getWxDataInfo(s)));
+
+            content.append("\n--- 涨幅 前3 ---\n");
+            r.getFlowList().stream()
+                    .sorted(Comparator.comparingDouble(s -> -s.getStockPriceRate().doubleValue()))
+                    .limit(3)
+                    .forEach(s -> content.append(StockMoneyFlow.getWxDataInfo(s)));
+
+            content.append("\n");
+        }
+        String summary = currentTime + " 板块资金分析";
+        wxNotifyService.sendInformation(summary, content.toString());
     }
 
 
