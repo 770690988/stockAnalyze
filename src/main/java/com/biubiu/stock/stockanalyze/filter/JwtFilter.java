@@ -2,6 +2,7 @@ package com.biubiu.stock.stockanalyze.filter;
 
 import com.biubiu.stock.stockanalyze.utils.JwtUtil;
 import com.biubiu.stock.stockanalyze.utils.UserContext;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
  * @Date 2026/5/3 14:58
  */
 @Component
+@Slf4j
 public class JwtFilter extends OncePerRequestFilter {
 
     @Autowired
@@ -44,6 +46,8 @@ public class JwtFilter extends OncePerRequestFilter {
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(userId, null, new ArrayList<>());
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+                } else {
+                    log.warn("JWT 校验失败，来源IP: {}, URI: {}", getClientIp(request), request.getRequestURI());
                 }
             }
 
@@ -52,5 +56,15 @@ public class JwtFilter extends OncePerRequestFilter {
         } finally {
             UserContext.clear(); // 必须清理，防止线程复用导致数据串用
         }
+    }
+
+
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip)) {
+            // 经过多层代理时，第一个才是真实IP，格式: "client, proxy1, proxy2"
+            return ip.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }

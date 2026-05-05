@@ -24,6 +24,10 @@ public class StockWatchlistBk {
     @TableField("bk_name")
     private String bkName;
 
+    // 用户id
+    @TableField("user_id")
+    private Long userId;
+
     // 板块类型
     @TableField("type")
     private Integer type;

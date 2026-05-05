@@ -9,7 +9,9 @@ import com.biubiu.stock.stockanalyze.model.StockMoneyFlow;
 import com.biubiu.stock.stockanalyze.model.StockWatchlistBk;
 import com.biubiu.stock.stockanalyze.model.StockWatchlistBkStock;
 import com.biubiu.stock.stockanalyze.service.StockWatchlistBkService;
+import com.biubiu.stock.stockanalyze.utils.UserContext;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +26,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class StockWatchlistBkServiceImpl implements StockWatchlistBkService {
 
     private final StockWatchlistBkMapper stockBkMapper;
@@ -32,11 +35,17 @@ public class StockWatchlistBkServiceImpl implements StockWatchlistBkService {
 
     @Override
     public List<StockWatchlistBk> listAll() {
-        return stockBkMapper.selectList(null);
+        Long userId = UserContext.get();
+        return stockBkMapper.selectList(
+                new LambdaQueryWrapper<StockWatchlistBk>()
+                        .eq(StockWatchlistBk::getUserId, userId)
+        );
     }
 
     @Override
     public void add(StockWatchlistBk bk) {
+        Long userId = UserContext.get();
+        bk.setUserId(userId);  // ✅ 绑定当前用户
         bk.setCreateTime(LocalDateTime.now());
         bk.setUpdateTime(LocalDateTime.now());
         stockBkMapper.insert(bk);
@@ -44,16 +53,26 @@ public class StockWatchlistBkServiceImpl implements StockWatchlistBkService {
 
     @Override
     public void update(StockWatchlistBk bk) {
-        bk.setUpdateTime(LocalDateTime.now());
-        stockBkMapper.updateById(bk);
+        Long userId = UserContext.get();
+        // ✅ 防止用户修改别人的数据
+        stockBkMapper.update(bk,
+                new LambdaQueryWrapper<StockWatchlistBk>()
+                        .eq(StockWatchlistBk::getId, bk.getId())
+                        .eq(StockWatchlistBk::getUserId, userId)
+        );
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteById(Integer id) {
-        // 删除板块
-        stockBkMapper.deleteById(id);
-        // 同时删除该板块下所有关联股票
+        Long userId = UserContext.get();
+        // ✅ 防止用户删除别人的板块
+        stockBkMapper.delete(
+                new LambdaQueryWrapper<StockWatchlistBk>()
+                        .eq(StockWatchlistBk::getId, id)
+                        .eq(StockWatchlistBk::getUserId, userId)
+        );
+        // 删除该板块下所有关联股票
         stockBkStockMapper.delete(
                 new LambdaQueryWrapper<StockWatchlistBkStock>()
                         .eq(StockWatchlistBkStock::getBkId, id)

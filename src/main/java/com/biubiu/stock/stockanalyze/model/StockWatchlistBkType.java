@@ -29,6 +29,10 @@ public class StockWatchlistBkType {
     @TableField("type_value")
     private Integer typeValue;
 
+    // 用户Id
+    @TableField("user_id")
+    private Long userId;
+
     // 排序
     @TableField("sort")
     private Integer sort;

@@ -31,15 +31,12 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                                // ↓↓↓ 登录注册永远放开
-                                .requestMatchers("/api/auth/**").permitAll()
-
-                                // ↓↓↓ 目前所有接口全部放开，需要拦截的自行取消注释下面这行
-                                .anyRequest().permitAll()
-
-                        // .anyRequest().authenticated() // ← 取消这行注释 = 其余接口全部需要登录
-                );
-                //.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                                // 登录、注册永远放开
+                                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
+                                // 其余接口全部需要登录
+                                .anyRequest().authenticated()
+                )
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

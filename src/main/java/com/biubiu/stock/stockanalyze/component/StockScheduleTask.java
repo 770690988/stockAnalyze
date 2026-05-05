@@ -48,7 +48,7 @@ public class StockScheduleTask {
             return;
         }
         LocalTime now = LocalTime.now();
-        if (now.isBefore(LocalTime.of(9, 30)) || now.isAfter(LocalTime.of(11, 30))) {
+        if (now.isBefore(LocalTime.of(9, 15)) || now.isAfter(LocalTime.of(11, 30))) {
             return;
         }
         log.info("早盘统计开始...");

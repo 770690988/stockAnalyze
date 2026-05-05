@@ -20,7 +20,6 @@ public class StockWatchlistBkTypeController {
     // 查询所有板块类型
     @GetMapping("/list")
     public ResponseEntity<List<StockWatchlistBkType>> list() {
-        log.info("enter /watchlist/bk/type/list");
         return ResponseEntity.ok(bkTypeService.listAll());
     }
 
