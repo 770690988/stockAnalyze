@@ -7,11 +7,7 @@
           <span class="panel-subtitle">共 {{ stockList.length }} 只股票</span>
         </div>
         <div class="panel-header-actions">
-          <el-button
-            size="small"
-            @click="toggleMoneyFlow"
-            :loading="moneyFlowLoading"
-          >
+          <el-button size="small" @click="toggleMoneyFlow" :loading="moneyFlowLoading">
             <el-icon><TrendCharts /></el-icon>
             {{ showMoneyFlow ? "收起资金流向" : "查看资金流向" }}
           </el-button>
@@ -26,9 +22,9 @@
             <el-icon><Upload /></el-icon> 批量导入
           </el-button>
           <el-popconfirm
-            v-if="selectedRows.length > 0"
-            :title="`确认移除选中的 ${selectedRows.length} 只股票？`"
-            @confirm="handleBatchDelete"
+              v-if="selectedRows.length > 0"
+              :title="`确认移除选中的 ${selectedRows.length} 只股票？`"
+              @confirm="handleBatchDelete"
           >
             <template #reference>
               <el-button size="small" type="danger">
@@ -43,11 +39,7 @@
       <div v-if="showMoneyFlow" class="money-flow-section">
         <div class="flow-toolbar">
           <span class="section-label">资金流向</span>
-          <el-radio-group
-            v-model="periodDay"
-            size="small"
-            @change="loadMoneyFlowHistory"
-          >
+          <el-radio-group v-model="periodDay" size="small" @change="loadMoneyFlowHistory">
             <el-radio-button :value="1">当日</el-radio-button>
             <el-radio-button :value="5">5日</el-radio-button>
             <el-radio-button :value="10">10日</el-radio-button>
@@ -57,8 +49,59 @@
 
         <div v-if="historyLoading" class="chart-loading">加载中...</div>
 
-        <table v-else class="flow-table">
-          <thead>
+        <template v-else>
+          <!-- 分析图表区域（仅多日模式显示） -->
+          <div v-if="moneyFlowList.length > 0" class="analysis-section">
+            <div class="analysis-header">
+            <div class="analysis-tabs">
+              <span
+                v-for="tab in analysisTabs"
+                :key="tab.key"
+                class="analysis-tab"
+                :class="{ active: activeAnalysisTab === tab.key }"
+                @click="switchAnalysisTab(tab.key)"
+              >{{ tab.label }}</span>
+            </div>
+            <span class="analysis-toggle" @click="showAnalysis = !showAnalysis">
+              {{ showAnalysis ? '收起' : '展开' }}
+            </span>
+          </div>
+            <template v-if="showAnalysis">
+              <!-- 方案三：散点气泡图 -->
+              <div v-show="activeAnalysisTab === 'scatter'" class="analysis-panel">
+                <div class="analysis-legend">
+                  <span v-for="(color, reason) in groupColors" :key="reason" class="legend-item">
+                    <span class="legend-dot" :style="{ background: color }"></span>{{ reason }}
+                  </span>
+                  <span class="legend-hint">气泡大小 = 换手率</span>
+                </div>
+                <div ref="scatterChartRef" class="analysis-chart"></div>
+                <p class="analysis-tip">X轴=涨跌幅(%)　Y轴=主力净流入　右上象限=涨且资金持续流入为强势信号</p>
+              </div>
+
+              <!-- 方案四：环形图 -->
+              <div v-show="activeAnalysisTab === 'donut'" class="analysis-panel">
+                <div ref="donutChartRef" class="analysis-chart donut-chart"></div>
+                <p class="analysis-tip">各加入理由分组的主力净流入汇总占比，hover 查看详情</p>
+              </div>
+
+              <!-- 方案五：累计面积图 -->
+              <div v-show="activeAnalysisTab === 'area'" class="analysis-panel">
+                <div class="analysis-legend">
+                  <span v-for="(color, reason) in groupColors" :key="reason" class="legend-item">
+                    <span class="legend-sq" :style="{ background: color }"></span>{{ reason }}
+                  </span>
+                </div>
+                <div ref="areaChartRef" class="analysis-chart"></div>
+                <p class="analysis-tip">累计净流入斜率越陡说明该逻辑持续获得主力增持，斜率变缓意味着吸引力减弱</p>
+              </div>
+            </template>
+          </div>
+          <!-- 分析图表区域结束 -->
+
+          <!-- 资金流向表格 -->
+          <table class="flow-table">
+            <thead>
             <tr>
               <th width="90">代码</th>
               <th width="100">名称</th>
@@ -74,21 +117,22 @@
               <th width="220">量能</th>
               <th v-if="periodDay > 1" width="220">累计量能</th>
             </tr>
-          </thead>
-          <tbody>
+            </thead>
+            <tbody>
             <tr v-for="row in moneyFlowList" :key="row.stockCode">
               <td>{{ row.stockCode }}</td>
               <td>{{ row.stockName }}</td>
               <td
-                style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-                :title="getAddReason(row.stockCode)"
+                  style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                  :title="getAddReason(row.stockCode)"
               >
                 {{ getAddReason(row.stockCode) }}
               </td>
               <td>{{ row.stockPrice }}</td>
               <td>
-                <span :class="row.stockPriceRate >= 0 ? 'rise' : 'fall'"
-                  >{{ row.stockPriceRate >= 0 ? "+" : "" }}{{ row.stockPriceRate }}%</span>
+                  <span :class="row.stockPriceRate >= 0 ? 'rise' : 'fall'">
+                    {{ row.stockPriceRate >= 0 ? "+" : "" }}{{ row.stockPriceRate }}%
+                  </span>
               </td>
               <td><span :class="row.mainNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.mainNet) }}</span></td>
               <td><span :class="row.superNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.superNet) }}</span></td>
@@ -97,23 +141,23 @@
               <td><span :class="row.smallNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.smallNet) }}</span></td>
               <td v-if="periodDay > 1" class="chart-cell chart-cell-sm">
                 <div
-                  :ref="(el) => { if (el) turnoverRateChartRefs[row.stockCode] = el; }"
-                  class="mini-chart chart-clickable"
-                  @click="openTurnoverRateZoomChart(row.stockCode)"
+                    :ref="(el) => { if (el) turnoverRateChartRefs[row.stockCode] = el; }"
+                    class="mini-chart chart-clickable"
+                    @click="openTurnoverRateZoomChart(row.stockCode)"
                 ></div>
               </td>
               <td class="chart-cell">
                 <div
-                  :ref="(el) => { if (el) chartRefs[row.stockCode] = el; }"
-                  class="mini-chart chart-clickable"
-                  @click="openZoomChart(row.stockCode, false)"
+                    :ref="(el) => { if (el) chartRefs[row.stockCode] = el; }"
+                    class="mini-chart chart-clickable"
+                    @click="openZoomChart(row.stockCode, false)"
                 ></div>
               </td>
               <td v-if="periodDay > 1" class="chart-cell">
                 <div
-                  :ref="(el) => { if (el) cumChartRefs[row.stockCode] = el; }"
-                  class="mini-chart chart-clickable"
-                  @click="openZoomChart(row.stockCode, true)"
+                    :ref="(el) => { if (el) cumChartRefs[row.stockCode] = el; }"
+                    class="mini-chart chart-clickable"
+                    @click="openZoomChart(row.stockCode, true)"
                 ></div>
               </td>
             </tr>
@@ -135,17 +179,18 @@
                 <div ref="totalCumChartRef" class="mini-chart chart-clickable" @click="openZoomChart('__total__', true)"></div>
               </td>
             </tr>
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </template>
       </div>
 
       <!-- 股票列表 -->
       <el-table
-        :data="stockList"
-        v-loading="stockLoading"
-        v-show="showStockList"
-        class="stock-table"
-        @selection-change="handleSelectionChange"
+          :data="stockList"
+          v-loading="stockLoading"
+          v-show="showStockList"
+          class="stock-table"
+          @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="45" />
         <el-table-column prop="stockCode" label="股票代码" width="110" />
@@ -168,9 +213,9 @@
 
       <!-- 批量导入弹窗 -->
       <BatchImportDialog
-        ref="batchImportRef"
-        :bkId="selectedBk.id"
-        @success="loadStockList(selectedBk.id)"
+          ref="batchImportRef"
+          :bkId="selectedBk.id"
+          @success="loadStockList(selectedBk.id)"
       />
     </template>
 
@@ -181,10 +226,10 @@
 
     <!-- 新增/编辑股票弹窗 -->
     <el-dialog
-      v-model="dialogVisible"
-      :title="dialogMode === 'add' ? '添加股票' : '编辑股票'"
-      width="500px"
-      @close="resetForm"
+        v-model="dialogVisible"
+        :title="dialogMode === 'add' ? '添加股票' : '编辑股票'"
+        width="500px"
+        @close="resetForm"
     >
       <el-form :model="form" :rules="rules" ref="formRef" label-width="90px">
         <el-form-item label="股票代码" prop="stockCode">
@@ -211,12 +256,12 @@
 
     <!-- 图表放大弹窗 -->
     <el-dialog
-      v-model="chartDialogVisible"
-      :title="chartDialogTitle"
-      width="860px"
-      class="chart-zoom-dialog"
-      @opened="initZoomChart"
-      @closed="disposeZoomChart"
+        v-model="chartDialogVisible"
+        :title="chartDialogTitle"
+        width="860px"
+        class="chart-zoom-dialog"
+        @opened="initZoomChart"
+        @closed="disposeZoomChart"
     >
       <div ref="zoomChartRef" style="width: 100%; height: 420px"></div>
     </el-dialog>
@@ -371,6 +416,7 @@ const loadMoneyFlowHistory = async () => {
   chartRefs.value = {};
   cumChartRefs.value = {};
   turnoverRateChartRefs.value = {};
+  disposeAnalysisCharts();
 
   moneyFlowLoading.value = true;
   try {
@@ -413,7 +459,10 @@ const loadMoneyFlowHistory = async () => {
     historyData.value = sortedHistory;
 
     await nextTick();
-    setTimeout(() => renderMiniCharts(), 100);
+    setTimeout(() => {
+      renderMiniCharts();
+      renderAnalysisCharts();
+    }, 100);
   } finally {
     moneyFlowLoading.value = false;
   }
@@ -677,6 +726,279 @@ const disposeZoomChart = () => {
   pendingChartData.value = null;
 };
 
+// ===================== 新增：分析图表（三/四/五） =====================
+
+const showAnalysis = ref(true);
+watch(showAnalysis, async (val) => {
+  if (val) {
+    await nextTick();
+    if (activeAnalysisTab.value === 'scatter') renderScatterChart();
+    if (activeAnalysisTab.value === 'donut')   renderDonutChart();
+    if (activeAnalysisTab.value === 'area')    renderAreaChart();
+  } else {
+    disposeAnalysisCharts();
+  }
+});
+
+const analysisTabs = [
+  { key: 'scatter', label: '资金-涨幅散点' },
+  { key: 'donut',   label: '理由分组环形' },
+  { key: 'area',    label: '累计净流入' },
+];
+const activeAnalysisTab = ref('scatter');
+
+const COLOR_POOL = [
+  '#e25c5c', '#409eff', '#67c23a', '#e6a23c',
+  '#9b59b6', '#1abc9c', '#e67e22', '#3498db',
+];
+
+const groupColors = computed(() => {
+  const reasons = [...new Set(
+    stockList.value.map(s => (s.addReason || '').trim() || '未分类')
+  )];
+  const map = {};
+  reasons.forEach((r, i) => { map[r] = COLOR_POOL[i % COLOR_POOL.length]; });
+  return map;
+});
+
+const groupSummary = computed(() => {
+  const summary = {};
+  const posTotal = moneyFlowList.value.reduce((s, r) => {
+    const net = r.mainNet || 0;
+    return s + (net > 0 ? net : 0);
+  }, 0);
+  moneyFlowList.value.forEach(row => {
+    const stockInfo = stockList.value.find(s => s.stockCode === row.stockCode);
+    const reason = (stockInfo?.addReason || '').trim() || '未分类';
+    if (!summary[reason]) summary[reason] = { net: 0, stocks: [] };
+    summary[reason].net += row.mainNet || 0;
+    summary[reason].stocks.push(row);
+  });
+  Object.keys(summary).forEach(r => {
+    const net = summary[r].net;
+    summary[r].pct = posTotal > 0 ? +((Math.max(0, net) / posTotal) * 100).toFixed(1) : 0;
+  });
+  return summary;
+});
+
+const scatterChartRef = ref(null);
+const donutChartRef   = ref(null);
+const areaChartRef    = ref(null);
+let scatterInstance = null;
+let donutInstance   = null;
+let areaInstance    = null;
+
+const disposeAnalysisCharts = () => {
+  scatterInstance?.dispose(); scatterInstance = null;
+  donutInstance?.dispose();   donutInstance   = null;
+  areaInstance?.dispose();    areaInstance    = null;
+};
+
+const switchAnalysisTab = async (key) => {
+  activeAnalysisTab.value = key;
+  await nextTick();
+  if (key === 'scatter' && !scatterInstance) renderScatterChart();
+  if (key === 'donut'   && !donutInstance)   renderDonutChart();
+  if (key === 'area'    && !areaInstance)    renderAreaChart();
+};
+
+const renderAnalysisCharts = () => {
+  // 每次数据刷新都强制重渲染，不复用旧实例
+  disposeAnalysisCharts();
+  nextTick(() => {
+    if (activeAnalysisTab.value === 'scatter') renderScatterChart();
+    if (activeAnalysisTab.value === 'donut')   renderDonutChart();
+    if (activeAnalysisTab.value === 'area')    renderAreaChart();
+  });
+};
+
+const renderScatterChart = () => {
+  if (!scatterChartRef.value) return;
+  scatterInstance?.dispose();
+  scatterInstance = echarts.init(scatterChartRef.value);
+  const seriesMap = {};
+  moneyFlowList.value.forEach(row => {
+    const stockInfo = stockList.value.find(s => s.stockCode === row.stockCode);
+    const reason = (stockInfo?.addReason || '').trim() || '未分类';
+    const turnoverRates = moneyFlowList.value.map(r => r.turnoverRate || 0);
+    const minTR = Math.min(...turnoverRates);
+    const maxTR = Math.max(...turnoverRates);
+    const trRange = maxTR - minTR || 1;
+    if (!seriesMap[reason]) seriesMap[reason] = [];
+    seriesMap[reason].push({
+      value: [row.stockPriceRate, +(row.mainNet / 100000000).toFixed(4)],
+      symbolSize: 10 + ((( row.turnoverRate || 0) - minTR) / trRange) * 30,
+      name: row.stockName,
+      turnoverRate: row.turnoverRate,
+    });
+  });
+  const series = Object.entries(seriesMap).map(([reason, data]) => ({
+    name: reason,
+    type: 'scatter',
+    data,
+    itemStyle: { color: groupColors.value[reason], opacity: 0.75 },
+    emphasis: { itemStyle: { opacity: 1, borderColor: '#fff', borderWidth: 1.5 } },
+    label: { show: true, formatter: (p) => p.data.name, position: 'top', fontSize: 11, color: '#666' },
+  }));
+  scatterInstance.setOption({
+    tooltip: {
+      trigger: 'item',
+      formatter: (p) => {
+        const d = p.data;
+        const netStr = d.value[1] >= 0 ? `+${d.value[1]}亿` : `${d.value[1]}亿`;
+        const color = d.value[1] >= 0 ? '#f56c6c' : '#67c23a';
+        return `<b>${d.name}</b><br/>涨跌幅：${d.value[0]}%<br/>主力净流入：<span style="color:${color}">${netStr}</span><br/>换手率：${d.turnoverRate ?? '-'}%`;
+      },
+    },
+    legend: { bottom: 0, data: Object.keys(seriesMap), textStyle: { fontSize: 12 } },
+    grid: { left: 70, right: 40, top: 40, bottom: 50 },
+    xAxis: {
+      name: '涨跌幅(%)', nameLocation: 'end', nameTextStyle: { fontSize: 12, color: '#999' },
+      splitLine: { lineStyle: { color: '#f0f0f0', type: 'dashed' } },
+      axisLabel: { formatter: (v) => `${v}%`, fontSize: 11 },
+    },
+    yAxis: {
+      name: '主力净流入(亿)', nameLocation: 'end', nameTextStyle: { fontSize: 12, color: '#999' },
+      splitLine: { lineStyle: { color: '#f0f0f0', type: 'dashed' } },
+      axisLabel: { formatter: (v) => `${v}亿`, fontSize: 11 },
+    },
+    series,
+  });
+};
+
+const renderDonutChart = () => {
+  donutInstance = echarts.init(donutChartRef.value, null, {
+  width: donutChartRef.value.offsetWidth || 600,
+  height: 320,
+});
+  if (!donutChartRef.value) return;
+  donutInstance?.dispose();
+  donutInstance = echarts.init(donutChartRef.value);
+
+  const data = Object.entries(groupSummary.value)
+    .map(([reason, v]) => ({
+      name: reason,
+      value: Math.abs(+(v.net / 100000000).toFixed(2)),
+      actualNet: v.net,
+      itemStyle: {
+        color: groupColors.value[reason],
+        opacity: v.net >= 0 ? 1 : 0.4,
+      },
+    }))
+    .filter(d => d.value > 0);
+
+  if (data.length === 0) return;
+
+  donutInstance.setOption({
+    tooltip: {
+      trigger: 'item',
+      formatter: (p) => {
+        const sign = p.data.actualNet >= 0 ? '+' : '';
+        const color = p.data.actualNet >= 0 ? '#f56c6c' : '#67c23a';
+        return `${p.name}<br/>净流入：<span style="color:${color}">${sign}${(p.data.actualNet / 100000000).toFixed(2)}亿</span><br/>占比：${p.percent}%`;
+      },
+    },
+    legend: {
+      show: true,
+      bottom: 0,
+      left: 'center',
+      orient: 'horizontal',  // 横向排列
+      itemWidth: 10,
+      itemHeight: 10,
+      textStyle: { fontSize: 12 },
+      formatter: (name) => {
+        const item = data.find(d => d.name === name);
+        if (!item) return name;
+        const tag = item.actualNet >= 0 ? '↑' : '↓';
+        return `${name} ${tag}${Math.abs(item.value)}亿`;
+      },
+    },
+    series: [{
+      type: 'pie',
+      radius: ['50%', '75%'],
+      center: ['50%', '45%'],  // 稍微往上移给图例留空间
+      data,
+      label: { show: false },  // 关掉图上的标签
+      labelLine: { show: false },
+      emphasis: {
+        itemStyle: { shadowBlur: 6, shadowColor: 'rgba(0,0,0,0.1)' },
+        label: { show: false },
+      },
+    }],
+  });
+
+  setTimeout(() => donutInstance?.resize(), 200);
+};
+
+const renderAreaChart = () => {
+  if (!areaChartRef.value) return;
+  areaInstance?.dispose();
+  areaInstance = echarts.init(areaChartRef.value);
+  const isIntraday = periodDay.value === 1;
+  const allDates = [...new Set(
+    Object.values(historyData.value).flatMap(records =>
+      records.map(r => isIntraday
+        ? (r.tradeDate.length > 10 ? r.tradeDate.substring(11, 16) : r.tradeDate)
+        : r.tradeDate.substring(0, 10)
+      )
+    )
+  )].sort();
+  const groupDailyNet = {};
+  Object.entries(historyData.value).forEach(([code, records]) => {
+    const stockInfo = stockList.value.find(s => s.stockCode === code);
+    const reason = (stockInfo?.addReason || '').trim() || '未分类';
+    if (!groupDailyNet[reason]) {
+      groupDailyNet[reason] = {};
+      allDates.forEach(d => { groupDailyNet[reason][d] = 0; });
+    }
+    records.forEach(r => {
+      const d = isIntraday
+      ? (r.tradeDate.length > 10 ? r.tradeDate.substring(11, 16) : r.tradeDate)
+      : r.tradeDate.substring(0, 10);
+      if (groupDailyNet[reason][d] !== undefined) groupDailyNet[reason][d] += r.mainNet || 0;
+    });
+  });
+  const series = Object.entries(groupDailyNet).map(([reason, dayMap]) => {
+    const dailyArr = allDates.map(d => +(dayMap[d] / 100000000).toFixed(2));
+    const cumArr = cumulate(dailyArr);
+    const color = groupColors.value[reason];
+    return {
+      name: reason, type: 'line', data: cumArr, smooth: true,
+      symbol: 'circle', symbolSize: 5,
+      lineStyle: { width: 2, color },
+      itemStyle: { color },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+        colorStops: [{ offset: 0, color: color + '33' }, { offset: 1, color: color + '05' }] } },
+    };
+  });
+  areaInstance.setOption({
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params) => {
+        let html = `${params[0].axisValue}<br/>`;
+        params.forEach(p => {
+          const color = p.value >= 0 ? '#f56c6c' : '#67c23a';
+          html += `${p.marker}${p.seriesName}：<span style="color:${color}">${p.value >= 0 ? '+' : ''}${p.value}亿</span><br/>`;
+        });
+        return html;
+      },
+    },
+    legend: { bottom: 0, data: Object.keys(groupDailyNet), textStyle: { fontSize: 12 } },
+    grid: { left: 70, right: 20, top: 20, bottom: 80 },
+    xAxis: {
+      type: 'category', data: allDates,
+      axisLabel: { rotate: 30, fontSize: 11 },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      name: '累计净流入(亿)', nameLocation: 'end', nameTextStyle: { fontSize: 12, color: '#999' },
+      axisLabel: { formatter: (v) => `${v}亿`, fontSize: 11 },
+      splitLine: { lineStyle: { color: '#f0f0f0', type: 'dashed' } },
+    },
+    series,
+  });
+};
+
 const formatAmount = (val) => {
   if (val === null || val === undefined) return "-";
   const abs = Math.abs(val);
@@ -810,4 +1132,41 @@ const getAddReason = (stockCode) => {
   gap: 12px;
   font-size: 14px;
 }
+
+.analysis-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.analysis-tabs { margin-bottom: 0; }
+.analysis-toggle { font-size: 12px; color: #409eff; cursor: pointer; user-select: none; flex-shrink: 0; }
+.analysis-toggle:hover { opacity: 0.75; }
+
+.analysis-section {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+.analysis-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.analysis-tab {
+  padding: 5px 14px; border-radius: 16px;
+  border: 1px solid #e4e7ed; background: #f5f7fa;
+  color: #606266; cursor: pointer; font-size: 13px;
+  transition: all .18s; user-select: none;
+}
+.analysis-tab.active { background: #ecf5ff; color: #409eff; border-color: #b3d8ff; font-weight: 500; }
+.analysis-tab:hover:not(.active) { background: #ebeef5; }
+.analysis-chart { width: 100%; height: 300px; }
+.donut-chart { height: 280px; }
+.analysis-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; font-size: 12px; color: #606266; }
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legend-sq  { width: 10px; height: 8px;  border-radius: 2px; flex-shrink: 0; }
+.legend-hint { color: #999; margin-left: 4px; }
+.analysis-tip { margin: 8px 0 0; font-size: 12px; color: #c0c4cc; }
+.donut-chart { height: 320px; width: 100%; }
+.donut-detail { flex: 1; min-width: 0; }
+.donut-detail-item { padding: 8px 10px; border-radius: 6px; border: 1px solid #ebeef5; background: #f9fafc; margin-bottom: 8px; }
+.donut-detail-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.donut-detail-name { font-size: 13px; font-weight: 500; color: #303133; flex: 1; }
+.donut-detail-net { font-size: 13px; font-weight: 500; }
+.donut-detail-stocks { font-size: 11px; color: #909399; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>
