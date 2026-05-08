@@ -228,14 +228,16 @@ public class RootServiceImpl implements RootService {
 
     public void freshStockMoneyFlowDataAll() throws InterruptedException {
         List<StockMoneyFlow> list = new ArrayList<>();
-        for (int num = 1; num <= 52; num++) {
+        Integer pageSize = 100;
+        Integer totalPages = 1;
+        for (int num = 1; num <= totalPages; num++) {
             Thread.sleep(1000);
             OkHttpClient client = new OkHttpClient().newBuilder()
                     .build();
             MediaType mediaType = MediaType.parse("text/plain");
             RequestBody body = RequestBody.create(mediaType, "");
             Request request = new Request.Builder()
-                    .url("https://push2delay.eastmoney.com/api/qt/clist/get?cb=jQuery1123009439079321877197_1773589707123&fid=f62&po=1&pz=100&pn="+ num +"&np=1&fltt=2&invt=2&ut=8dec03ba335b81bf4ebdf7b29ec27d15&fs=m%3A0%2Bt%3A6%2Bf%3A!2%2Cm%3A0%2Bt%3A13%2Bf%3A!2%2Cm%3A0%2Bt%3A80%2Bf%3A!2%2Cm%3A1%2Bt%3A2%2Bf%3A!2%2Cm%3A1%2Bt%3A23%2Bf%3A!2&fields=f12%2Cf14%2Cf2%2Cf3%2Cf62%2Cf184%2Cf66%2Cf69%2Cf72%2Cf75%2Cf78%2Cf81%2Cf84%2Cf87%2Cf204%2Cf205%2Cf124%2Cf1%2Cf13")
+                    .url("https://push2delay.eastmoney.com/api/qt/clist/get?cb=jQuery1123009439079321877197_1773589707123&fid=f62&po=1&pz=" + pageSize + "&pn="+ num +"&np=1&fltt=2&invt=2&ut=8dec03ba335b81bf4ebdf7b29ec27d15&fs=m%3A0%2Bt%3A6%2Bf%3A!2%2Cm%3A0%2Bt%3A13%2Bf%3A!2%2Cm%3A0%2Bt%3A80%2Bf%3A!2%2Cm%3A1%2Bt%3A2%2Bf%3A!2%2Cm%3A1%2Bt%3A23%2Bf%3A!2&fields=f12%2Cf14%2Cf2%2Cf3%2Cf62%2Cf184%2Cf66%2Cf69%2Cf72%2Cf75%2Cf78%2Cf81%2Cf84%2Cf87%2Cf204%2Cf205%2Cf124%2Cf1%2Cf13")
                     .get()
                     .build();
             try {
@@ -250,6 +252,15 @@ public class RootServiceImpl implements RootService {
 
                 // 取出 data 里的 diff 列表
                 JSONArray diffList = jsonObject.getJSONObject("data").getJSONArray("diff");
+
+                JSONObject data = jsonObject.getJSONObject("data");
+
+                // 第一页时动态计算总页数
+                if (num == 1) {
+                    int total = data.getIntValue("total");
+                    totalPages = (int) Math.ceil((double) total / pageSize);
+                    log.info("资金流向股票总数: {}, 总页数: {}", total, totalPages);
+                }
 
 
                 String timeString = getCurrentTradeTime();
@@ -285,14 +296,16 @@ public class RootServiceImpl implements RootService {
 
     public void freshStockPriceDataAll() throws InterruptedException {
         List<StockMoneyFlow> list = new ArrayList<>();
-        for (int num = 1; num <= 55; num++) {
+        Integer pageSize = 100;
+        Integer totalPages = 1; // 先默认1页，第一次请求后动态更新
+        for (int num = 1; num <= totalPages; num++) {
             Thread.sleep(1000);
             OkHttpClient client = new OkHttpClient().newBuilder()
                     .build();
             MediaType mediaType = MediaType.parse("text/plain");
             RequestBody body = RequestBody.create(mediaType, "");
             Request request = new Request.Builder()
-                    .url("https://push2.eastmoney.com/api/qt/clist/get?np=1&fltt=1&invt=2&cb=jQuery37105078362270830823_1773668416609&fs=m%3A0%2Bt%3A6%2Bf%3A!2%2Cm%3A0%2Bt%3A80%2Bf%3A!2%2Cm%3A1%2Bt%3A2%2Bf%3A!2%2Cm%3A1%2Bt%3A23%2Bf%3A!2%2Cm%3A0%2Bt%3A81%2Bs%3A262144%2Bf%3A!2&fields=f12%2Cf13%2Cf14%2Cf1%2Cf2%2Cf4%2Cf3%2Cf152%2Cf5%2Cf6%2Cf7%2Cf15%2Cf18%2Cf16%2Cf17%2Cf10%2Cf8%2Cf9%2Cf23%2Cf17&fid=f3&pn="+ num +"&pz=100&po=1&dect=1&ut=fa5fd1943c7b386f172d6893dbfba10b&wbp2u=%7C0%7C0%7C0%7Cweb&_=1773668416613")
+                    .url("https://push2.eastmoney.com/api/qt/clist/get?np=1&fltt=1&invt=2&cb=jQuery37105078362270830823_1773668416609&fs=m%3A0%2Bt%3A6%2Bf%3A!2%2Cm%3A0%2Bt%3A80%2Bf%3A!2%2Cm%3A1%2Bt%3A2%2Bf%3A!2%2Cm%3A1%2Bt%3A23%2Bf%3A!2%2Cm%3A0%2Bt%3A81%2Bs%3A262144%2Bf%3A!2&fields=f12%2Cf13%2Cf14%2Cf1%2Cf2%2Cf4%2Cf3%2Cf152%2Cf5%2Cf6%2Cf7%2Cf15%2Cf18%2Cf16%2Cf17%2Cf10%2Cf8%2Cf9%2Cf23%2Cf17&fid=f3&pn="+ num + "&pz=" + pageSize +"&po=1&dect=1&ut=fa5fd1943c7b386f172d6893dbfba10b&wbp2u=%7C0%7C0%7C0%7Cweb&_=1773668416613")
                     .get()
                     .build();
             try {
@@ -307,6 +320,14 @@ public class RootServiceImpl implements RootService {
 
                 // 取出 data 里的 diff 列表
                 JSONArray diffList = jsonObject.getJSONObject("data").getJSONArray("diff");
+                JSONObject data = jsonObject.getJSONObject("data");
+
+                // 第一页时动态计算总页数
+                if (num == 1) {
+                    int total = data.getIntValue("total");
+                    totalPages = (int) Math.ceil((double) total / pageSize);
+                    log.info("股票总数: {}, 总页数: {}", total, totalPages);
+                }
 
 
                 String timeString = getCurrentTradeTime();
@@ -617,12 +638,35 @@ public class RootServiceImpl implements RootService {
 
             if (flowList.isEmpty()) continue;
 
-            double totalMainNet = flowList.stream().mapToDouble(s -> s.getMainNet().doubleValue()).sum();
-            double totalSuperNet = flowList.stream().mapToDouble(s -> s.getSuperNet().doubleValue()).sum();
-            double totalLargeNet = flowList.stream().mapToDouble(s -> s.getLargeNet().doubleValue()).sum();
-            double totalMiddleNet = flowList.stream().mapToDouble(s -> s.getMiddleNet().doubleValue()).sum();
-            double totalSmallNet = flowList.stream().mapToDouble(s -> s.getSmallNet().doubleValue()).sum();
-            double avgPriceRate = flowList.stream().mapToDouble(s -> s.getStockPriceRate().doubleValue()).average().orElse(0);
+            //把数据为null的打印出来
+            flowList.stream()
+                    .filter(s -> s.getMainNet() == null || s.getSuperNet() == null ||
+                            s.getLargeNet() == null || s.getMiddleNet() == null ||
+                            s.getSmallNet() == null || s.getStockPriceRate() == null)
+                    .forEach(s -> log.warn("板块[{}] 股票[{}{}] 存在null字段: mainNet={}, superNet={}, largeNet={}, middleNet={}, smallNet={}, priceRate={}",
+                            bk.getBkName(), s.getStockCode(), s.getStockName(),
+                            s.getMainNet(), s.getSuperNet(), s.getLargeNet(),
+                            s.getMiddleNet(), s.getSmallNet(), s.getStockPriceRate()));
+
+            double totalMainNet = flowList.stream()
+                    .mapToDouble(s -> s.getMainNet() != null ? s.getMainNet().doubleValue() : 0)
+                    .sum();
+            double totalSuperNet = flowList.stream()
+                    .mapToDouble(s -> s.getSuperNet() != null ? s.getSuperNet().doubleValue() : 0)
+                    .sum();
+            double totalLargeNet = flowList.stream()
+                    .mapToDouble(s -> s.getLargeNet() != null ? s.getLargeNet().doubleValue() : 0)
+                    .sum();
+            double totalMiddleNet = flowList.stream()
+                    .mapToDouble(s -> s.getMiddleNet() != null ? s.getMiddleNet().doubleValue() : 0)
+                    .sum();
+            double totalSmallNet = flowList.stream()
+                    .mapToDouble(s -> s.getSmallNet() != null ? s.getSmallNet().doubleValue() : 0)
+                    .sum();
+            double avgPriceRate = flowList.stream()
+                    .filter(s -> s.getStockPriceRate() != null)
+                    .mapToDouble(s -> s.getStockPriceRate().doubleValue())
+                    .average().orElse(0);
 
             resultList.add(new BkAnalyzeResult(bk.getBkName(), totalMainNet, totalSuperNet, totalLargeNet, totalMiddleNet, totalSmallNet, avgPriceRate, flowList));
         }
@@ -651,12 +695,14 @@ public class RootServiceImpl implements RootService {
 
             content.append("\n--- 主力净流入 前3 ---\n");
             r.getFlowList().stream()
+                    .filter(s -> s.getMainNet() != null)
                     .sorted(Comparator.comparingDouble(s -> -s.getMainNet().doubleValue()))
                     .limit(3)
                     .forEach(s -> content.append(StockMoneyFlow.getWxDataInfo(s)));
 
             content.append("\n--- 涨幅 前3 ---\n");
             r.getFlowList().stream()
+                    .filter(s -> s.getStockPriceRate() != null)
                     .sorted(Comparator.comparingDouble(s -> -s.getStockPriceRate().doubleValue()))
                     .limit(3)
                     .forEach(s -> content.append(StockMoneyFlow.getWxDataInfo(s)));
