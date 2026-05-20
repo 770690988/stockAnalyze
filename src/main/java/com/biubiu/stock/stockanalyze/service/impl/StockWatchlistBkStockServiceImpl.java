@@ -46,7 +46,8 @@ public class StockWatchlistBkStockServiceImpl implements StockWatchlistBkStockSe
     @Override
     public boolean add(StockWatchlistBkStock stock) {
         // 幂等：已存在则跳过
-        StockWatchlistBkStock existing = watchBkStockMapper.getByBkIdAndStockCode(stock.getBkId(), stock.getStockCode());
+        StockWatchlistBkStock existing = watchBkStockMapper.getByBkIdAndStockCodeAndReason(
+                stock.getBkId(), stock.getStockCode(), stock.getAddReason());
         if (existing != null) {
             return true;
         }

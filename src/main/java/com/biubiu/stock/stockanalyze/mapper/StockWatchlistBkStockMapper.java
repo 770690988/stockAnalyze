@@ -24,4 +24,9 @@ public interface StockWatchlistBkStockMapper extends BaseMapper<StockWatchlistBk
     StockWatchlistBkStock getByBkIdAndStockCode(@Param("bkId") Integer bkId, @Param("stockCode") String stockCode);
 
     Integer deleteBatch(List<Integer> ids);
+
+    StockWatchlistBkStock getByBkIdAndStockCodeAndReason(
+            @Param("bkId") Integer bkId,
+            @Param("stockCode") String stockCode,
+            @Param("addReason") String addReason);
 }

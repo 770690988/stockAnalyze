@@ -82,6 +82,31 @@
               <!-- 方案四：环形图 -->
               <div v-show="activeAnalysisTab === 'donut'" class="analysis-panel">
                 <div ref="donutChartRef" class="analysis-chart donut-chart"></div>
+                <!-- 自定义图例，流入/流出分两行，各自按绝对值降序 -->
+                <div class="donut-legend-section">
+                  <div class="donut-legend-row" v-if="sortedDonutRise.length > 0">
+                    <span class="donut-legend-label rise">↑ 流入</span>
+                    <span v-for="item in sortedDonutRise" :key="'rise_' + item.reason"
+                      class="donut-legend-item"
+                      :class="{ 'legend-disabled': donutHidden.has(item.reason) }"
+                      @click="toggleDonutLegend(item.reason)">
+                      <span class="donut-legend-dot" :style="{ background: groupColors[item.reason] }"></span>
+                      <span class="donut-legend-name">{{ item.reason }}</span>
+                      <span class="rise">{{ (item.net / 1e8).toFixed(2) }}亿</span>
+                    </span>
+                  </div>
+                  <div class="donut-legend-row" v-if="sortedDonutFall.length > 0">
+                    <span class="donut-legend-label fall">↓ 流出</span>
+                    <span v-for="item in sortedDonutFall" :key="'fall_' + item.reason"
+                      class="donut-legend-item"
+                      :class="{ 'legend-disabled': donutHidden.has(item.reason) }"
+                      @click="toggleDonutLegend(item.reason)">
+                      <span class="donut-legend-dot" :style="{ background: groupColors[item.reason] }"></span>
+                      <span class="donut-legend-name">{{ item.reason }}</span>
+                      <span class="fall">{{ (Math.abs(item.net) / 1e8).toFixed(2) }}亿</span>
+                    </span>
+                  </div>
+                </div>
                 <p class="analysis-tip">各加入理由分组的主力净流入汇总占比，hover 查看详情</p>
               </div>
 
@@ -119,14 +144,14 @@
             </tr>
             </thead>
             <tbody>
-            <tr v-for="row in moneyFlowList" :key="row.stockCode">
+            <tr v-for="row in moneyFlowList" :key="row.rowKey">
               <td>{{ row.stockCode }}</td>
               <td>{{ row.stockName }}</td>
               <td
                   style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-                  :title="getAddReason(row.stockCode)"
+                  :title="row.addReason"
               >
-                {{ getAddReason(row.stockCode) }}
+                {{ row.addReason || '-' }}
               </td>
               <td>{{ row.stockPrice }}</td>
               <td>
@@ -141,23 +166,23 @@
               <td><span :class="row.smallNet >= 0 ? 'rise' : 'fall'">{{ formatAmount(row.smallNet) }}</span></td>
               <td v-if="periodDay > 1" class="chart-cell chart-cell-sm">
                 <div
-                    :ref="(el) => { if (el) turnoverRateChartRefs[row.stockCode] = el; }"
+                    :ref="(el) => { if (el) turnoverRateChartRefs[row.rowKey] = el; }"
                     class="mini-chart chart-clickable"
-                    @click="openTurnoverRateZoomChart(row.stockCode)"
+                    @click="openTurnoverRateZoomChart(row.rowKey)"
                 ></div>
               </td>
               <td class="chart-cell">
                 <div
-                    :ref="(el) => { if (el) chartRefs[row.stockCode] = el; }"
+                    :ref="(el) => { if (el) chartRefs[row.rowKey] = el; }"
                     class="mini-chart chart-clickable"
-                    @click="openZoomChart(row.stockCode, false)"
+                    @click="openZoomChart(row.rowKey, false)"
                 ></div>
               </td>
               <td v-if="periodDay > 1" class="chart-cell">
                 <div
-                    :ref="(el) => { if (el) cumChartRefs[row.stockCode] = el; }"
+                    :ref="(el) => { if (el) cumChartRefs[row.rowKey] = el; }"
                     class="mini-chart chart-clickable"
-                    @click="openZoomChart(row.stockCode, true)"
+                    @click="openZoomChart(row.rowKey, true)"
                 ></div>
               </td>
             </tr>
@@ -390,11 +415,22 @@ const chartInstances = {};
 const cumChartInstances = {};
 const turnoverRateChartInstances = {};
 
-const totalMainNet = computed(() => moneyFlowList.value.reduce((s, r) => s + (r.mainNet || 0), 0));
-const totalSuperNet = computed(() => moneyFlowList.value.reduce((s, r) => s + (r.superNet || 0), 0));
-const totalLargeNet = computed(() => moneyFlowList.value.reduce((s, r) => s + (r.largeNet || 0), 0));
-const totalMiddleNet = computed(() => moneyFlowList.value.reduce((s, r) => s + (r.middleNet || 0), 0));
-const totalSmallNet = computed(() => moneyFlowList.value.reduce((s, r) => s + (r.smallNet || 0), 0));
+// 合计：对同一股票多行（不同理由）需去重，只累加一次
+// 用 stockCode 去重后再求和，避免同一股票因多个理由被重复计入
+const uniqueByStockCode = computed(() => {
+  const seen = new Set();
+  return moneyFlowList.value.filter((row) => {
+    if (seen.has(row.stockCode)) return false;
+    seen.add(row.stockCode);
+    return true;
+  });
+});
+
+const totalMainNet = computed(() => uniqueByStockCode.value.reduce((s, r) => s + (r.mainNet || 0), 0));
+const totalSuperNet = computed(() => uniqueByStockCode.value.reduce((s, r) => s + (r.superNet || 0), 0));
+const totalLargeNet = computed(() => uniqueByStockCode.value.reduce((s, r) => s + (r.largeNet || 0), 0));
+const totalMiddleNet = computed(() => uniqueByStockCode.value.reduce((s, r) => s + (r.middleNet || 0), 0));
+const totalSmallNet = computed(() => uniqueByStockCode.value.reduce((s, r) => s + (r.smallNet || 0), 0));
 
 const toggleMoneyFlow = async () => {
   showMoneyFlow.value = !showMoneyFlow.value;
@@ -422,6 +458,7 @@ const loadMoneyFlowHistory = async () => {
   try {
     const res = await getMoneyFlowHistory(props.selectedBk.id, periodDay.value);
 
+    // 按 stockCode 分组，行情数据与理由无关
     const grouped = {};
     res.forEach((item) => {
       if (!grouped[item.stockCode]) grouped[item.stockCode] = [];
@@ -430,28 +467,43 @@ const loadMoneyFlowHistory = async () => {
 
     const sortedList = [];
     const sortedHistory = {};
+
     stockList.value.forEach((s) => {
       const records = grouped[s.stockCode];
       if (records && records.length > 0) {
+        // rowKey = stockCode + addReason，保证同一股票不同理由各占一行
+        const rowKey = `${s.stockCode}__${s.addReason || ''}`;
+
         if (periodDay.value === 1) {
-          sortedList.push(records[records.length - 1]);
+          const latest = records[records.length - 1];
+          sortedList.push({
+            ...latest,
+            addReason: s.addReason,
+            rowKey,
+          });
         } else {
           const first = records[0];
           const latest = records[records.length - 1];
           const summed = {
             ...latest,
-            mainNet: records.reduce((s, r) => s + (r.mainNet || 0), 0),
-            superNet: records.reduce((s, r) => s + (r.superNet || 0), 0),
-            largeNet: records.reduce((s, r) => s + (r.largeNet || 0), 0),
-            middleNet: records.reduce((s, r) => s + (r.middleNet || 0), 0),
-            smallNet: records.reduce((s, r) => s + (r.smallNet || 0), 0),
+            addReason: s.addReason,
+            rowKey,
+            mainNet: records.reduce((acc, r) => acc + (r.mainNet || 0), 0),
+            superNet: records.reduce((acc, r) => acc + (r.superNet || 0), 0),
+            largeNet: records.reduce((acc, r) => acc + (r.largeNet || 0), 0),
+            middleNet: records.reduce((acc, r) => acc + (r.middleNet || 0), 0),
+            smallNet: records.reduce((acc, r) => acc + (r.smallNet || 0), 0),
             stockPriceRate: first.stockPrice && latest.stockPrice && first.stockPrice !== 0
               ? +((latest.stockPrice - first.stockPrice) / first.stockPrice * 100).toFixed(2)
               : latest.stockPriceRate,
           };
           sortedList.push(summed);
         }
-        sortedHistory[s.stockCode] = records;
+
+        // historyData 按 stockCode 存，多行共用同一份行情记录
+        if (!sortedHistory[s.stockCode]) {
+          sortedHistory[s.stockCode] = records;
+        }
       }
     });
 
@@ -494,6 +546,7 @@ const findSlot = (timeStr) => {
 const buildTotalDataIntraday = () => {
   const sumBySlot = {};
   TIME_SLOTS.forEach((slot) => { sumBySlot[slot] = { mainNet: 0, superNet: 0, largeNet: 0, middleNet: 0, smallNet: 0, hasData: false }; });
+  // historyData 已按 stockCode 去重，不会重复累加
   Object.values(historyData.value).forEach((records) => {
     records.forEach((r) => {
       const timeLabel = r.tradeDate.length > 10 ? r.tradeDate.substring(11, 16) : r.tradeDate;
@@ -523,6 +576,7 @@ const buildTotalDataMultiDay = () => {
   const allLabels = [...new Set(Object.values(historyData.value).flatMap((records) => records.map((r) => r.tradeDate.substring(0, 10))))].sort();
   const sumByLabel = {};
   allLabels.forEach((label) => { sumByLabel[label] = { mainNet: 0, superNet: 0, largeNet: 0, middleNet: 0, smallNet: 0 }; });
+  // historyData 已按 stockCode 去重，不会重复累加
   Object.values(historyData.value).forEach((records) => {
     records.forEach((r) => {
       const label = r.tradeDate.substring(0, 10);
@@ -623,7 +677,12 @@ const buildZoomChartOption = (labels, mainNet, superNet, largeNet, middleNet, sm
 });
 
 const renderMiniCharts = () => {
-  Object.entries(historyData.value).forEach(([code, records]) => {
+  // 遍历 moneyFlowList，每行用 rowKey 作为图表实例 key
+  // 行情数据从 historyData[stockCode] 取，多行共用同一份数据
+  moneyFlowList.value.forEach((row) => {
+    const records = historyData.value[row.stockCode];
+    if (!records) return;
+
     const labels = records.map((r) => formatDateLabel(r.tradeDate));
     const mainNet = records.map((r) => +(r.mainNet / 10000).toFixed(2));
     const superNet = records.map((r) => +(r.superNet / 10000).toFixed(2));
@@ -633,16 +692,28 @@ const renderMiniCharts = () => {
     const turnoverRate = records.map((r) => r.turnoverRate != null ? +r.turnoverRate.toFixed(2) : null);
 
     if (periodDay.value > 1) {
-      const trEl = turnoverRateChartRefs.value[code];
-      if (trEl) { const trChart = echarts.init(trEl); turnoverRateChartInstances[code] = trChart; trChart.setOption(buildTurnoverRateOption(labels, turnoverRate)); }
+      const trEl = turnoverRateChartRefs.value[row.rowKey];
+      if (trEl) {
+        const trChart = echarts.init(trEl);
+        turnoverRateChartInstances[row.rowKey] = trChart;
+        trChart.setOption(buildTurnoverRateOption(labels, turnoverRate));
+      }
     }
 
-    const el = chartRefs.value[code];
-    if (el) { const chart = echarts.init(el); chartInstances[code] = chart; chart.setOption(buildChartOption(labels, mainNet, superNet, largeNet, middleNet, smallNet)); }
+    const el = chartRefs.value[row.rowKey];
+    if (el) {
+      const chart = echarts.init(el);
+      chartInstances[row.rowKey] = chart;
+      chart.setOption(buildChartOption(labels, mainNet, superNet, largeNet, middleNet, smallNet));
+    }
 
     if (periodDay.value > 1) {
-      const cumEl = cumChartRefs.value[code];
-      if (cumEl) { const cumChart = echarts.init(cumEl); cumChartInstances[code] = cumChart; cumChart.setOption(buildChartOption(labels, cumulate(mainNet), cumulate(superNet), cumulate(largeNet), cumulate(middleNet), cumulate(smallNet))); }
+      const cumEl = cumChartRefs.value[row.rowKey];
+      if (cumEl) {
+        const cumChart = echarts.init(cumEl);
+        cumChartInstances[row.rowKey] = cumChart;
+        cumChart.setOption(buildChartOption(labels, cumulate(mainNet), cumulate(superNet), cumulate(largeNet), cumulate(middleNet), cumulate(smallNet)));
+      }
     }
   });
 
@@ -656,9 +727,17 @@ const renderMiniCharts = () => {
 
     const { allLabels, mainNet, superNet, largeNet, middleNet, smallNet } = buildTotalData();
 
-    if (totalChartRef.value) { const totalChart = echarts.init(totalChartRef.value); chartInstances["__total__"] = totalChart; totalChart.setOption(buildChartOption(allLabels, mainNet, superNet, largeNet, middleNet, smallNet)); }
+    if (totalChartRef.value) {
+      const totalChart = echarts.init(totalChartRef.value);
+      chartInstances["__total__"] = totalChart;
+      totalChart.setOption(buildChartOption(allLabels, mainNet, superNet, largeNet, middleNet, smallNet));
+    }
 
-    if (periodDay.value > 1 && totalCumChartRef.value) { const totalCumChart = echarts.init(totalCumChartRef.value); cumChartInstances["__total__"] = totalCumChart; totalCumChart.setOption(buildChartOption(allLabels, cumulate(mainNet), cumulate(superNet), cumulate(largeNet), cumulate(middleNet), cumulate(smallNet))); }
+    if (periodDay.value > 1 && totalCumChartRef.value) {
+      const totalCumChart = echarts.init(totalCumChartRef.value);
+      cumChartInstances["__total__"] = totalCumChart;
+      totalCumChart.setOption(buildChartOption(allLabels, cumulate(mainNet), cumulate(superNet), cumulate(largeNet), cumulate(middleNet), cumulate(smallNet)));
+    }
   }
 };
 
@@ -669,40 +748,51 @@ const zoomChartRef = ref(null);
 let zoomChartInstance = null;
 const pendingChartData = ref(null);
 
-const openTurnoverRateZoomChart = (code) => {
+const openTurnoverRateZoomChart = (rowKey) => {
   let labels, turnoverRate;
-  if (code === "__total__") {
+  if (rowKey === "__total__") {
     const total = buildTotalTurnoverRateData();
-    labels = total.allLabels; turnoverRate = total.turnoverRate;
+    labels = total.allLabels;
+    turnoverRate = total.turnoverRate;
     chartDialogTitle.value = "合计 — 换手率";
   } else {
-    const records = historyData.value[code];
-    const stockName = moneyFlowList.value.find((r) => r.stockCode === code)?.stockName || code;
+    // rowKey 格式为 stockCode__addReason
+    const stockCode = rowKey.split("__")[0];
+    const records = historyData.value[stockCode];
+    const row = moneyFlowList.value.find((r) => r.rowKey === rowKey);
+    const stockName = row?.stockName || stockCode;
+    const addReason = row?.addReason || '';
     labels = records.map((r) => formatDateLabel(r.tradeDate));
     turnoverRate = records.map((r) => r.turnoverRate != null ? +r.turnoverRate.toFixed(2) : null);
-    chartDialogTitle.value = `${stockName}（${code}）— 换手率`;
+    chartDialogTitle.value = addReason
+      ? `${stockName}（${stockCode}）[${addReason}] — 换手率`
+      : `${stockName}（${stockCode}）— 换手率`;
   }
   pendingChartData.value = { type: "turnoverRate", labels, turnoverRate };
   chartDialogVisible.value = true;
 };
 
-const openZoomChart = (code, isCum) => {
+const openZoomChart = (rowKey, isCum) => {
   let labels, mainNet, superNet, largeNet, middleNet, smallNet;
-  if (code === "__total__") {
+  if (rowKey === "__total__") {
     const total = buildTotalData();
     labels = total.allLabels; mainNet = total.mainNet; superNet = total.superNet;
     largeNet = total.largeNet; middleNet = total.middleNet; smallNet = total.smallNet;
     chartDialogTitle.value = isCum ? "合计 — 累计量能" : "合计 — 量能";
   } else {
-    const records = historyData.value[code];
-    const stockName = moneyFlowList.value.find((r) => r.stockCode === code)?.stockName || code;
+    const stockCode = rowKey.split("__")[0];
+    const records = historyData.value[stockCode];
+    const row = moneyFlowList.value.find((r) => r.rowKey === rowKey);
+    const stockName = row?.stockName || stockCode;
+    const addReason = row?.addReason || '';
     labels = records.map((r) => formatDateLabel(r.tradeDate));
     mainNet = records.map((r) => +(r.mainNet / 10000).toFixed(2));
     superNet = records.map((r) => +(r.superNet / 10000).toFixed(2));
     largeNet = records.map((r) => +(r.largeNet / 10000).toFixed(2));
     middleNet = records.map((r) => +(r.middleNet / 10000).toFixed(2));
     smallNet = records.map((r) => +(r.smallNet / 10000).toFixed(2));
-    chartDialogTitle.value = isCum ? `${stockName}（${code}）— 累计量能` : `${stockName}（${code}）— 量能`;
+    const titlePrefix = addReason ? `${stockName}（${stockCode}）[${addReason}]` : `${stockName}（${stockCode}）`;
+    chartDialogTitle.value = isCum ? `${titlePrefix} — 累计量能` : `${titlePrefix} — 量能`;
   }
   if (isCum) { mainNet = cumulate(mainNet); superNet = cumulate(superNet); largeNet = cumulate(largeNet); middleNet = cumulate(middleNet); smallNet = cumulate(smallNet); }
   pendingChartData.value = { type: "flow", labels, mainNet, superNet, largeNet, middleNet, smallNet };
@@ -748,8 +838,26 @@ const analysisTabs = [
 const activeAnalysisTab = ref('scatter');
 
 const COLOR_POOL = [
-  '#e25c5c', '#409eff', '#67c23a', '#e6a23c',
-  '#9b59b6', '#1abc9c', '#e67e22', '#3498db',
+  '#e6324b', // 红
+  '#2480e8', // 蓝
+  '#27ae60', // 绿
+  '#f39c12', // 橙
+  '#8e44ad', // 紫
+  '#16a085', // 青绿
+  '#d35400', // 深橙
+  '#1a6fc4', // 深蓝
+  '#f06292', // 粉红
+  '#00897b', // 深青
+  '#c0ca33', // 黄绿
+  '#6d4c41', // 棕
+  '#5c6bc0', // 靛蓝
+  '#00acc1', // 天蓝
+  '#e53935', // 深红
+  '#43a047', // 中绿
+  '#fb8c00', // 深黄橙
+  '#8d6e63', // 褐
+  '#00838f', // 深青蓝
+  '#7b1fa2', // 深紫
 ];
 
 const groupColors = computed(() => {
@@ -763,13 +871,13 @@ const groupColors = computed(() => {
 
 const groupSummary = computed(() => {
   const summary = {};
-  const posTotal = moneyFlowList.value.reduce((s, r) => {
+  const posTotal = uniqueByStockCode.value.reduce((s, r) => {
     const net = r.mainNet || 0;
     return s + (net > 0 ? net : 0);
   }, 0);
+  // 分析图表按理由分组，同一股票不同理由各自独立统计
   moneyFlowList.value.forEach(row => {
-    const stockInfo = stockList.value.find(s => s.stockCode === row.stockCode);
-    const reason = (stockInfo?.addReason || '').trim() || '未分类';
+    const reason = (row.addReason || '').trim() || '未分类';
     if (!summary[reason]) summary[reason] = { net: 0, stocks: [] };
     summary[reason].net += row.mainNet || 0;
     summary[reason].stocks.push(row);
@@ -781,17 +889,47 @@ const groupSummary = computed(() => {
   return summary;
 });
 
+// 环形图图例排序：流入/流出各自按绝对值降序
+const sortedDonutRise = computed(() =>
+  Object.entries(groupSummary.value)
+    .filter(([, v]) => v.net >= 0)
+    .sort((a, b) => b[1].net - a[1].net)
+    .map(([reason, v]) => ({ reason, net: v.net }))
+);
+const sortedDonutFall = computed(() =>
+  Object.entries(groupSummary.value)
+    .filter(([, v]) => v.net < 0)
+    .sort((a, b) => a[1].net - b[1].net)
+    .map(([reason, v]) => ({ reason, net: v.net }))
+);
+
 const scatterChartRef = ref(null);
 const donutChartRef   = ref(null);
 const areaChartRef    = ref(null);
 let scatterInstance = null;
 let donutInstance   = null;
 let areaInstance    = null;
+const donutHidden   = ref(new Set());
+
+const toggleDonutLegend = (reason) => {
+  if (!donutInstance) return;
+  const hidden = donutHidden.value;
+  if (hidden.has(reason)) {
+    hidden.delete(reason);
+    donutInstance.dispatchAction({ type: 'legendSelect', name: reason });
+  } else {
+    hidden.add(reason);
+    donutInstance.dispatchAction({ type: 'legendUnSelect', name: reason });
+  }
+  // 触发响应式更新
+  donutHidden.value = new Set(hidden);
+};
 
 const disposeAnalysisCharts = () => {
   scatterInstance?.dispose(); scatterInstance = null;
   donutInstance?.dispose();   donutInstance   = null;
   areaInstance?.dispose();    areaInstance    = null;
+  donutHidden.value = new Set();
 };
 
 const switchAnalysisTab = async (key) => {
@@ -803,7 +941,6 @@ const switchAnalysisTab = async (key) => {
 };
 
 const renderAnalysisCharts = () => {
-  // 每次数据刷新都强制重渲染，不复用旧实例
   disposeAnalysisCharts();
   nextTick(() => {
     if (activeAnalysisTab.value === 'scatter') renderScatterChart();
@@ -817,17 +954,16 @@ const renderScatterChart = () => {
   scatterInstance?.dispose();
   scatterInstance = echarts.init(scatterChartRef.value);
   const seriesMap = {};
+  const turnoverRates = moneyFlowList.value.map(r => r.turnoverRate || 0);
+  const minTR = Math.min(...turnoverRates);
+  const maxTR = Math.max(...turnoverRates);
+  const trRange = maxTR - minTR || 1;
   moneyFlowList.value.forEach(row => {
-    const stockInfo = stockList.value.find(s => s.stockCode === row.stockCode);
-    const reason = (stockInfo?.addReason || '').trim() || '未分类';
-    const turnoverRates = moneyFlowList.value.map(r => r.turnoverRate || 0);
-    const minTR = Math.min(...turnoverRates);
-    const maxTR = Math.max(...turnoverRates);
-    const trRange = maxTR - minTR || 1;
+    const reason = (row.addReason || '').trim() || '未分类';
     if (!seriesMap[reason]) seriesMap[reason] = [];
     seriesMap[reason].push({
       value: [row.stockPriceRate, +(row.mainNet / 100000000).toFixed(4)],
-      symbolSize: 10 + ((( row.turnoverRate || 0) - minTR) / trRange) * 30,
+      symbolSize: 10 + (((row.turnoverRate || 0) - minTR) / trRange) * 30,
       name: row.stockName,
       turnoverRate: row.turnoverRate,
     });
@@ -867,10 +1003,6 @@ const renderScatterChart = () => {
 };
 
 const renderDonutChart = () => {
-  donutInstance = echarts.init(donutChartRef.value, null, {
-  width: donutChartRef.value.offsetWidth || 600,
-  height: 320,
-});
   if (!donutChartRef.value) return;
   donutInstance?.dispose();
   donutInstance = echarts.init(donutChartRef.value);
@@ -898,27 +1030,13 @@ const renderDonutChart = () => {
         return `${p.name}<br/>净流入：<span style="color:${color}">${sign}${(p.data.actualNet / 100000000).toFixed(2)}亿</span><br/>占比：${p.percent}%`;
       },
     },
-    legend: {
-      show: true,
-      bottom: 0,
-      left: 'center',
-      orient: 'horizontal',  // 横向排列
-      itemWidth: 10,
-      itemHeight: 10,
-      textStyle: { fontSize: 12 },
-      formatter: (name) => {
-        const item = data.find(d => d.name === name);
-        if (!item) return name;
-        const tag = item.actualNet >= 0 ? '↑' : '↓';
-        return `${name} ${tag}${Math.abs(item.value)}亿`;
-      },
-    },
+    legend: { show: false, data: data.map(d => d.name) },
     series: [{
       type: 'pie',
       radius: ['50%', '75%'],
-      center: ['50%', '45%'],  // 稍微往上移给图例留空间
+      center: ['50%', '45%'],
       data,
-      label: { show: false },  // 关掉图上的标签
+      label: { show: false },
       labelLine: { show: false },
       emphasis: {
         itemStyle: { shadowBlur: 6, shadowColor: 'rgba(0,0,0,0.1)' },
@@ -943,21 +1061,31 @@ const renderAreaChart = () => {
       )
     )
   )].sort();
+
+  // 按理由分组，累计净流入
+  // seenInReason 防止同一理由下同一股票的行情数据被重复累加
   const groupDailyNet = {};
-  Object.entries(historyData.value).forEach(([code, records]) => {
-    const stockInfo = stockList.value.find(s => s.stockCode === code);
-    const reason = (stockInfo?.addReason || '').trim() || '未分类';
+  const seenInReason = new Set();
+  moneyFlowList.value.forEach((row) => {
+    const reason = (row.addReason || '').trim() || '未分类';
+    const records = historyData.value[row.stockCode];
+    if (!records) return;
     if (!groupDailyNet[reason]) {
       groupDailyNet[reason] = {};
       allDates.forEach(d => { groupDailyNet[reason][d] = 0; });
     }
+    // 同一理由下同一股票只累加一次
+    const seenKey = `${reason}__${row.stockCode}`;
+    if (seenInReason.has(seenKey)) return;
+    seenInReason.add(seenKey);
     records.forEach(r => {
       const d = isIntraday
-      ? (r.tradeDate.length > 10 ? r.tradeDate.substring(11, 16) : r.tradeDate)
-      : r.tradeDate.substring(0, 10);
+        ? (r.tradeDate.length > 10 ? r.tradeDate.substring(11, 16) : r.tradeDate)
+        : r.tradeDate.substring(0, 10);
       if (groupDailyNet[reason][d] !== undefined) groupDailyNet[reason][d] += r.mainNet || 0;
     });
   });
+
   const series = Object.entries(groupDailyNet).map(([reason, dayMap]) => {
     const dailyArr = allDates.map(d => +(dayMap[d] / 100000000).toFixed(2));
     const cumArr = cumulate(dailyArr);
@@ -974,9 +1102,18 @@ const renderAreaChart = () => {
   areaInstance.setOption({
     tooltip: {
       trigger: 'axis',
+      confine: false,
+      position: (point, params, dom, rect, size) => {
+        const [x, y] = point;
+        const [w] = size.contentSize;
+        // 优先显示在鼠标左侧，避免被右侧按钮遮挡
+        const left = x - w - 16 > 0 ? x - w - 16 : x + 16;
+        return [left, y];
+      },
       formatter: (params) => {
+        const sorted = [...params].sort((a, b) => b.value - a.value);
         let html = `${params[0].axisValue}<br/>`;
-        params.forEach(p => {
+        sorted.forEach(p => {
           const color = p.value >= 0 ? '#f56c6c' : '#67c23a';
           html += `${p.marker}${p.seriesName}：<span style="color:${color}">${p.value >= 0 ? '+' : ''}${p.value}亿</span><br/>`;
         });
@@ -1006,10 +1143,6 @@ const formatAmount = (val) => {
   if (abs >= 1e8) return `${sign}${(abs / 1e8).toFixed(2)}亿`;
   if (abs >= 1e4) return `${sign}${(abs / 1e4).toFixed(2)}万`;
   return `${sign}${abs}`;
-};
-
-const getAddReason = (stockCode) => {
-  return stockList.value.find((s) => s.stockCode === stockCode)?.addReason || "-";
 };
 </script>
 
@@ -1169,4 +1302,13 @@ const getAddReason = (stockCode) => {
 .donut-detail-name { font-size: 13px; font-weight: 500; color: #303133; flex: 1; }
 .donut-detail-net { font-size: 13px; font-weight: 500; }
 .donut-detail-stocks { font-size: 11px; color: #909399; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.donut-legend-section { margin: 10px 0 4px; display: flex; flex-direction: column; gap: 6px; }
+.donut-legend-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 6px 10px; border-radius: 6px; background: #fafbfc; }
+.donut-legend-label { font-size: 12px; font-weight: 600; flex-shrink: 0; margin-right: 4px; }
+.donut-legend-item { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+.donut-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.donut-legend-name { color: #606266; }
+.donut-legend-item { cursor: pointer; transition: opacity 0.2s; }
+.donut-legend-item:hover { opacity: 0.75; }
+.legend-disabled { opacity: 0.35; }
 </style>

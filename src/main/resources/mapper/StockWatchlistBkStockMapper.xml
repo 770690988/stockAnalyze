@@ -20,6 +20,14 @@
         WHERE bk_id = #{bkId} AND stock_code = #{stockCode}
         LIMIT 1
     </select>
+    <select id="getByBkIdAndStockCodeAndReason"
+            resultType="com.biubiu.stock.stockanalyze.model.StockWatchlistBkStock">
+        SELECT * FROM stock_watchlist_bk_stock
+        WHERE bk_id = #{bkId}
+          AND stock_code = #{stockCode}
+          AND add_reason = #{addReason}
+            LIMIT 1
+    </select>
 
     <delete id="deleteBatch">
         DELETE FROM stock_watchlist_bk_stock
