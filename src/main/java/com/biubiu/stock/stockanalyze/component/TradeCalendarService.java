@@ -28,7 +28,7 @@ public class TradeCalendarService {
     /**
      * 判断今天是否是交易日
      */
-    public boolean isTradingDay() {
+    public boolean isNotTradingDay() {
         LocalDate today = LocalDate.now();
         // 先看数据库有没有记录
         TradeCalendar calendar = tradeCalendarMapper.selectByDate(today);

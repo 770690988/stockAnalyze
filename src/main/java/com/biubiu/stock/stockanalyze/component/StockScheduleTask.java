@@ -45,7 +45,7 @@ public class StockScheduleTask {
     @Scheduled(cron = "0 15/30 9-11 ? * MON-FRI")
     public void freshStockDataMorning() throws Exception {
         //节假日跳过
-        if (tradeCalendarService.isTradingDay()) {
+        if (tradeCalendarService.isNotTradingDay()) {
             log.info("current day is not trading day");
             return;
         }
@@ -67,7 +67,7 @@ public class StockScheduleTask {
     @Scheduled(cron = "0 0/30 13-15 ? * MON-FRI")
     public void freshStockDataAfternoon() throws Exception {
         //节假日跳过
-        if (tradeCalendarService.isTradingDay()) {
+        if (tradeCalendarService.isNotTradingDay()) {
             log.info("current day is not trading day");
             return;
         }
@@ -80,8 +80,7 @@ public class StockScheduleTask {
         try {
             rootService.freshStockMoneyFlowDataAll();
         } catch (Exception e) {
-            WxPostUtils wxPostUtils = new WxPostUtils();
-            wxPostUtils.postMessage("刷新股票数据失败", e.getMessage());
+            wxNotifyService.sendInformation("刷新股票数据失败", e.getMessage());
         }
         log.info("午盘统计完成");
         sendWxMessage();
@@ -91,19 +90,17 @@ public class StockScheduleTask {
     @Scheduled(cron = "0 30 15 ? * MON-FRI")
     public void freshStockDataEvening() throws Exception {
         //节假日跳过
-        if (tradeCalendarService.isTradingDay()) {
+        if (tradeCalendarService.isNotTradingDay()) {
             log.info("current day is not trading day");
             return;
         }
         log.info("晚盘统计开始...");
         try {
             rootService.freshStockPriceDataAll();
-            WxPostUtils wxPostUtils = new WxPostUtils();
-            wxPostUtils.postMessage("刷新数据结束", "当日股票数据刷新完成！");
+            wxNotifyService.sendInformation("刷新数据结束", "当日股票数据刷新完成！");
             Thread.sleep(2000);
         } catch (Exception e) {
-            WxPostUtils wxPostUtils = new WxPostUtils();
-            wxPostUtils.postMessage("刷新晚盘数据失败", e.getMessage());
+            wxNotifyService.sendInformation("刷新晚盘数据失败", e.getMessage());
         }
         log.info("晚盘统计完成");
         sendWxMessage();
